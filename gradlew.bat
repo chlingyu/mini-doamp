@@ -32,6 +32,7 @@ goto fail
 
 :end
 if "%OS%"=="Windows_NT" endlocal
+exit /b %ERRORLEVEL%
 
 :fail
 echo ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.

@@ -20,9 +20,9 @@
 | Phase | 内容 | 状态 | 备注 |
 |-------|------|------|------|
 | 0 | 项目骨架（Gradle多模块、建表SQL、通用工具、Security+JWT、用户/角色/部门CRUD） | ✅ 完成 | compileJava通过，Codex 3轮审查通过 |
-| 1 | 预警引擎（策略模式、7种指标类型） | 未开始 | |
-| 2 | 消息推送（RabbitMQ、幂等、死信队列、重试） | 未开始 | |
-| 3 | Redis缓存（Cache Aside、延迟双删、防雪崩、防穿透） | 未开始 | |
+| 1 | 预警引擎（策略模式、7种指标类型） | ✅ 完成 | compileJava通过，Codex 2轮审查通过 |
+| 2 | 消息推送（RabbitMQ、幂等、死信队列、重试） | ✅ 完成 | compileJava通过，Codex 3轮审查通过 |
+| 3 | Redis缓存（Cache Aside、延迟双删、防雪崩、防穿透） | ✅ 完成 | compileJava通过，Codex 1轮审查通过 |
 | 4 | 定时调度（XXL-Job、ShedLock动态锁名） | 未开始 | |
 | 5 | SOP工作流（状态机、流程引擎、回退任意节点） | 未开始 | |
 | 6 | 多库适配（Adapter工厂、databaseIdProvider） | 未开始 | |
@@ -40,6 +40,19 @@
 - refresh token 无状态，jti 预留撤销扩展点，生产方案口述（Redis 黑名单/tokenVersion）
 - 用户 DTO 拆分：UserCreateRequest（username+password 必填）/ UserUpdateRequest（无 username）
 - 删除部门/角色前校验关联用户和子部门，创建/更新用户校验 deptId/roleId 存在性
+- 预警引擎：Map<IndexType, WarnStrategy> 路由，无 if-else；7种策略独立实现类
+- 自定义 SQL 三层校验：白名单(SELECT)+黑名单(DML)+注入防护(分号/注释)，保存前+执行前两处校验
+- 阈值校验：indexType/compareType 强制枚举校验，按 compareType 强制 upper/lower 必填规则
+- gradle-wrapper.properties 改为腾讯云镜像
+- 消息推送：Topic Exchange + 3队列(sms/email/wxwork) + DLX + DLQ，手动ACK
+- 幂等消费：SETNX msg:idempotent:{msgId} 独立 key + 24h 独立过期，避免全局集合膨胀
+- Producer 先存 PENDING 到 DB 再发 MQ，publish 异常回写 FAILED
+- 补偿任务只扫 FAILED（不扫 RETRYING），retryCount >= 3 置 ALARM
+- Redis 缓存：Cache Aside + afterCommit 延迟双删 + 随机TTL(30±5min) + 空值防穿透(__NULL__+5min)
+- 缓存 key 规范：dict:items:{dictCode}、index:data:{indexCode}:{date}
+- SCAN 替代 KEYS 批量删除，Cursor 用 try-with-resources 关闭
+- 字典 DTO 拆分：DictRequest(创建) / DictUpdateRequest(更新，items=null不修改)
+- 延迟双删线程池 @Bean(destroyMethod="shutdown") 优雅关闭
 
 ## 工作流程
 

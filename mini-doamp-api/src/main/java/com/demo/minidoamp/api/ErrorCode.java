@@ -30,6 +30,9 @@ public enum ErrorCode {
     RULE_NOT_FOUND(2002, "规则不存在"),
     INDEX_CODE_EXISTS(2003, "指标编码已存在"),
     CUSTOM_SQL_INVALID(2004, "自定义SQL不合法"),
+    INVALID_INDEX_TYPE(2005, "非法指标类型"),
+    INVALID_COMPARE_TYPE(2006, "非法比较方式"),
+    THRESHOLD_LIMIT_REQUIRED(2007, "阈值上下限缺失"),
 
     // SOP相关 3xxx
     WORKFLOW_NOT_FOUND(3001, "流程定义不存在"),
@@ -39,7 +42,11 @@ public enum ErrorCode {
 
     // 消息相关 4xxx
     MSG_SEND_FAILED(4001, "消息发送失败"),
-    MSG_ALREADY_SENT(4002, "消息已发送，不可重复");
+    MSG_ALREADY_SENT(4002, "消息已发送，不可重复"),
+
+    // 字典相关 5xxx
+    DICT_NOT_FOUND(5001, "字典不存在"),
+    DICT_CODE_EXISTS(5002, "字典编码已存在");
 
     private final int code;
     private final String msg;
