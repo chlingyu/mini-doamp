@@ -1,0 +1,30 @@
+// mini-doamp-server: 主启动模块
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+
+dependencies {
+    api project(':mini-doamp-core')
+    api project(':mini-doamp-gateway')
+    api project(':mini-doamp-doamp')
+    api project(':mini-doamp-event')
+    api project(':mini-doamp-sop')
+
+    // MySQL
+    runtimeOnly 'mysql:mysql-connector-java'
+
+    // H2 (测试/多库适配演示)
+    runtimeOnly 'com.h2database:h2'
+
+    // Log4j2
+    implementation 'org.springframework.boot:spring-boot-starter-log4j2'
+}
+
+configurations {
+    all {
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+    }
+}
+
+bootJar {
+    archiveFileName = 'mini-doamp.jar'
+}

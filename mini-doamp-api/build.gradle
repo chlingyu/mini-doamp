@@ -1,0 +1,5 @@
+// mini-doamp-api: 纯定义模块（DTO/VO/常量/错误码）
+dependencies {
+    api "com.alibaba.fastjson2:fastjson2:${fastjson2Version}"
+    api 'javax.validation:validation-api:2.0.1.Final'
+}

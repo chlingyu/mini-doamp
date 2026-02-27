@@ -1,0 +1,18 @@
+// mini-doamp-gateway: 认证网关模块（Security + JWT + 用户管理）
+apply plugin: 'io.spring.dependency-management'
+
+dependencies {
+    implementation project(':mini-doamp-core')
+
+    // Spring Security
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // JWT
+    implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
+    // MapStruct
+    annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+    annotationProcessor "org.projectlombok:lombok-mapstruct-binding:0.2.0"
+}

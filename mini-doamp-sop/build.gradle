@@ -1,0 +1,14 @@
+// mini-doamp-sop: SOP工作流模块（任务管理/流程引擎/定时调度）
+apply plugin: 'io.spring.dependency-management'
+
+dependencies {
+    implementation project(':mini-doamp-core')
+
+    // ShedLock
+    implementation "net.javacrumbs.shedlock:shedlock-spring:${shedlockVersion}"
+    implementation "net.javacrumbs.shedlock:shedlock-provider-jdbc-template:${shedlockVersion}"
+
+    // MapStruct
+    annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+    annotationProcessor "org.projectlombok:lombok-mapstruct-binding:0.2.0"
+}

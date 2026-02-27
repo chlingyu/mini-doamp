@@ -1,0 +1,9 @@
+rootProject.name = 'mini-doamp'
+
+include 'mini-doamp-api'
+include 'mini-doamp-core'
+include 'mini-doamp-gateway'
+include 'mini-doamp-doamp'
+include 'mini-doamp-event'
+include 'mini-doamp-sop'
+include 'mini-doamp-server'

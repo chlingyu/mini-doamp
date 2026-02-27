@@ -1,0 +1,13 @@
+// mini-doamp-event: 预警事件模块（预警引擎/消息推送）
+apply plugin: 'io.spring.dependency-management'
+
+dependencies {
+    implementation project(':mini-doamp-core')
+
+    // RabbitMQ
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+
+    // MapStruct
+    annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+    annotationProcessor "org.projectlombok:lombok-mapstruct-binding:0.2.0"
+}

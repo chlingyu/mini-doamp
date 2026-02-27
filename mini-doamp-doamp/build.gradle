@@ -1,0 +1,10 @@
+// mini-doamp-doamp: 主业务模块（指标查询/字典管理/缓存服务）
+apply plugin: 'io.spring.dependency-management'
+
+dependencies {
+    implementation project(':mini-doamp-core')
+
+    // MapStruct
+    annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+    annotationProcessor "org.projectlombok:lombok-mapstruct-binding:0.2.0"
+}

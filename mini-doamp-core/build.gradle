@@ -1,0 +1,26 @@
+// mini-doamp-core: 核心公共模块（实体类/Mapper/工具类/枚举/配置）
+apply plugin: 'io.spring.dependency-management'
+
+dependencies {
+    api project(':mini-doamp-api')
+
+    api 'org.springframework.boot:spring-boot-starter-web'
+    api 'org.springframework.boot:spring-boot-starter-validation'
+
+    // MyBatis Plus
+    api "com.baomidou:mybatis-plus-boot-starter:${mybatisPlusVersion}"
+
+    // MapStruct
+    api "org.mapstruct:mapstruct:${mapstructVersion}"
+    annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+    annotationProcessor "org.projectlombok:lombok-mapstruct-binding:0.2.0"
+
+    // Fastjson2
+    api "com.alibaba.fastjson2:fastjson2:${fastjson2Version}"
+
+    // Redis
+    api 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // EasyExcel
+    api "com.alibaba:easyexcel:${easyexcelVersion}"
+}
