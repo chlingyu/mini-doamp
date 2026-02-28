@@ -81,8 +81,16 @@ public class WarnMessageProducer {
     public void republish(MsgRecord record) {
         String routingKey = resolveRoutingKey(record.getNotifyType());
         if (routingKey == null) return;
-        rabbitTemplate.convertAndSend(RabbitMqConfig.WARN_EXCHANGE, routingKey, record.getMsgId());
-        log.info("MQ republished msgId={} to {}", record.getMsgId(), routingKey);
+        try {
+            rabbitTemplate.convertAndSend(RabbitMqConfig.WARN_EXCHANGE, routingKey, record.getMsgId());
+            log.info("MQ republished msgId={} to {}", record.getMsgId(), routingKey);
+        } catch (Exception e) {
+            record.setStatus(MsgStatus.FAILED.getCode());
+            record.setFailReason("MQ重投失败: " + e.getMessage());
+            record.setUpdateTime(LocalDateTime.now());
+            msgRecordMapper.updateById(record);
+            log.error("MQ republish failed msgId={}", record.getMsgId(), e);
+        }
     }
 
     private String resolveRoutingKey(String notifyType) {

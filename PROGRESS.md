@@ -25,7 +25,7 @@
 | 3 | Redis缓存（Cache Aside、延迟双删、防雪崩、防穿透） | ✅ 完成 | compileJava通过，Codex 1轮审查通过 |
 | 4 | 定时调度（XXL-Job、ShedLock动态锁名） | ✅ 完成 | compileJava通过，Codex 2轮审查通过，冒烟测试通过 |
 | 5 | SOP工作流（状态机、流程引擎、回退任意节点） | ✅ 完成 | compileJava通过，Codex 4轮审查通过 |
-| 6 | 多库适配（Adapter工厂、databaseIdProvider） | 未开始 | |
+| 6 | 多库适配（Adapter工厂、databaseIdProvider） | ✅ 完成 | compileJava通过，Codex 2轮审查通过 |
 | 7 | 前端（Vue3、AntV X6、Vuex、Axios） | 未开始 | |
 
 ## 关键设计决策（跨文件已统一）
@@ -63,7 +63,14 @@
 - 回退机制：rollback() 校验目标节点有 DONE 记录，中间 exec 标记 ROLLED_BACK，任务回到 EXECUTING
 - SopNotifier：先落 MsgRecord(PENDING) 再投 msgId 到 MQ，与 Phase 2 消费者协议兼容
 - handleReject fromStatus 取实时任务状态，terminate 补 MQ 通知
+- 多库适配：databaseIdProvider(MySQL→mysql, H2→h2) + DatabaseAdapter接口 + 工厂模式路由
+- 方言差异3项：dateFormat(DATE_FORMAT vs FORMATDATETIME)、paginate(参数顺序)、groupConcat(SEPARATOR)
+- Mapper XML 用 databaseId 属性编写差异化 SQL，MyBatis 自动选择匹配语句
+- MybatisPlusConfig 动态检测 DbType（不再硬编码 MYSQL），PaginationInnerInterceptor 适配
+- H2 profile：auto-startup=false 关闭消费者（不排除 Rabbit 自动配置，Producer try-catch 容错）
+- schema-h2.sql：移除 ENGINE/COMMENT/ON UPDATE，JSON→TEXT，TIMESTAMP(3)→TIMESTAMP
+- republish() 补 try-catch 回写 FAILED 状态，与 publish() 容错一致
 
 ## 工作流程
 
-Claude 写代码 → 用户确认 → Codex 审查 → 改完进下一 Phase
+Claude 写代码 → compileJava → 标记"待审查" → Codex 审查（可能多轮）→ 标记"✅ 完成" → git commit + push

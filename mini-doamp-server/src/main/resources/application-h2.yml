@@ -1,0 +1,28 @@
+# H2 内嵌数据库配置（多库适配演示用）
+# 启动方式: --spring.profiles.active=h2
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:mini_doamp;DB_CLOSE_DELAY=-1;MODE=MySQL;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:sql/schema-h2.sql
+      data-locations: classpath:sql/data.sql
+  # H2 模式下 Redis 仍可连接，若无 Redis 服务则缓存操作降级
+  redis:
+    host: localhost
+    port: 6379
+  # H2 模式下保留 RabbitMQ 自动配置（RabbitTemplate 仍创建，Producer 已有 try-catch 容错）
+  # 但关闭消费者自动启动，避免 @RabbitListener 在无 MQ 服务时连接失败
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
