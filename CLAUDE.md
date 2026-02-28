@@ -333,4 +333,5 @@ com.demo.minidoamp
 - 先输出数据库表结构设计和项目目录结构，等确认后再编码
 - 一个模块一个模块地做，每个模块完成后暂停等确认
 - 开发顺序：Phase 0 骨架 → Phase 1 预警引擎 → Phase 2 消息推送 → Phase 3 Redis缓存 → Phase 4 定时调度 → Phase 5 SOP工作流 → Phase 6 多库适配 → Phase 7 前端
+- 每个 Phase 完成后必须：① compileJava 验证 ② 更新 PROGRESS.md（状态+关键设计决策） ③ git commit + push
 - 每个 Phase 完成后可提交给 Codex 审查（参考 agents.md）
