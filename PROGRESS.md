@@ -24,7 +24,7 @@
 | 2 | 消息推送（RabbitMQ、幂等、死信队列、重试） | ✅ 完成 | compileJava通过，Codex 3轮审查通过 |
 | 3 | Redis缓存（Cache Aside、延迟双删、防雪崩、防穿透） | ✅ 完成 | compileJava通过，Codex 1轮审查通过 |
 | 4 | 定时调度（XXL-Job、ShedLock动态锁名） | ✅ 完成 | compileJava通过，Codex 2轮审查通过，冒烟测试通过 |
-| 5 | SOP工作流（状态机、流程引擎、回退任意节点） | 未开始 | |
+| 5 | SOP工作流（状态机、流程引擎、回退任意节点） | ✅ 完成 | compileJava通过，Codex 4轮审查通过 |
 | 6 | 多库适配（Adapter工厂、databaseIdProvider） | 未开始 | |
 | 7 | 前端（Vue3、AntV X6、Vuex、Axios） | 未开始 | |
 
@@ -57,7 +57,12 @@
 - ShedLock 编程式API：动态锁名不能用@SchedulerLock注解，用LockProvider.lock()手动获取
 - MsgCompensationTask 从 @Scheduled 迁移为 XXL-Job handler
 - 新增 t_job_exec_log 表记录任务执行日志，JobController 提供监控API
-- SopTaskGenerateJob 已实现模板扫描+动态锁 sop_generate_${templateId}，任务实例创建待 Phase 5
+- SopTaskGenerateJob 已实现模板扫描+动态锁 sop_generate_${templateId}，任务实例创建已对接
+- SOP 工作流：WorkflowEngine.advance() 状态机校验 + 策略模式(NodeHandler) + 分支条件路由
+- 状态转换矩阵含 EXECUTING/APPROVING 自循环，支持多处理节点串行推进
+- 回退机制：rollback() 校验目标节点有 DONE 记录，中间 exec 标记 ROLLED_BACK，任务回到 EXECUTING
+- SopNotifier：先落 MsgRecord(PENDING) 再投 msgId 到 MQ，与 Phase 2 消费者协议兼容
+- handleReject fromStatus 取实时任务状态，terminate 补 MQ 通知
 
 ## 工作流程
 
