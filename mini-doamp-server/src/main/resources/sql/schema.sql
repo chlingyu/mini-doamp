@@ -297,3 +297,17 @@ CREATE TABLE IF NOT EXISTS shedlock (
     locked_at  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '加锁时间',
     locked_by  VARCHAR(255) NOT NULL COMMENT '加锁实例标识'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='ShedLock分布式锁表';
+
+-- ========== 7. 定时任务执行日志表 ==========
+
+CREATE TABLE IF NOT EXISTS t_job_exec_log (
+    id          BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    job_name    VARCHAR(64)  NOT NULL COMMENT '任务名称',
+    job_param   VARCHAR(512) COMMENT '任务参数',
+    status      TINYINT      NOT NULL COMMENT '执行状态（1成功 0失败）',
+    message     VARCHAR(1024) COMMENT '执行信息',
+    cost_ms     BIGINT       COMMENT '耗时(ms)',
+    create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_job_name (job_name),
+    KEY idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='定时任务执行日志表';

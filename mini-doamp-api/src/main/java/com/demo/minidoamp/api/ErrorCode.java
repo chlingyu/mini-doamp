@@ -39,6 +39,11 @@ public enum ErrorCode {
     TASK_NOT_FOUND(3002, "任务不存在"),
     INVALID_STATUS_TRANSITION(3003, "非法状态转换"),
     NODE_NOT_FOUND(3004, "节点不存在"),
+    TEMPLATE_NOT_FOUND(3005, "任务模板不存在"),
+    WORKFLOW_NOT_PUBLISHED(3006, "流程未发布"),
+    TASK_EXEC_NOT_FOUND(3007, "执行记录不存在"),
+    ROLLBACK_NOT_ALLOWED(3008, "不允许回退到该节点"),
+    WORKFLOW_CODE_EXISTS(3009, "流程编码已存在"),
 
     // 消息相关 4xxx
     MSG_SEND_FAILED(4001, "消息发送失败"),

@@ -4,6 +4,15 @@ apply plugin: 'io.spring.dependency-management'
 dependencies {
     implementation project(':mini-doamp-core')
 
+    // Security (compileOnly, provided at runtime by gateway module)
+    compileOnly 'org.springframework.boot:spring-boot-starter-security'
+
+    // RabbitMQ（复用 event 模块的 Exchange 发送 SOP 通知）
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+
+    // XXL-Job
+    implementation "com.xuxueli:xxl-job-core:${xxlJobVersion}"
+
     // ShedLock
     implementation "net.javacrumbs.shedlock:shedlock-spring:${shedlockVersion}"
     implementation "net.javacrumbs.shedlock:shedlock-provider-jdbc-template:${shedlockVersion}"

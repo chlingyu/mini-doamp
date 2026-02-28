@@ -14,8 +14,8 @@ INSERT INTO t_sys_dept (id, dept_name, parent_id, sort_order) VALUES
 
 -- 密码: admin123 → BCrypt
 INSERT INTO t_sys_user (id, username, password, real_name, phone, email, dept_id, role_id) VALUES
-(1, 'admin', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36Kz2G43W0GWOaSMBFiH9S2', '管理员', '13800000001', 'admin@demo.com', 1, 1),
-(2, 'operator', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36Kz2G43W0GWOaSMBFiH9S2', '运营员', '13800000002', 'op@demo.com', 2, 2);
+(1, 'admin', '$2a$10$P8AVDRDdnIh3OshE4IBkROBx8OaBIh3iLLxgMw.9P76FaaZuQzzCK', '管理员', '13800000001', 'admin@demo.com', 1, 1),
+(2, 'operator', '$2a$10$P8AVDRDdnIh3OshE4IBkROBx8OaBIh3iLLxgMw.9P76FaaZuQzzCK', '运营员', '13800000002', 'op@demo.com', 2, 2);
 
 -- ========== 2. 基础字典 ==========
 INSERT INTO t_sys_dict (id, dict_code, dict_name) VALUES
