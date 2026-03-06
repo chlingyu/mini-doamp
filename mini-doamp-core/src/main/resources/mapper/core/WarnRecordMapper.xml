@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.demo.minidoamp.core.mapper.WarnRecordMapper">
+
+    <select id="selectTrend" resultType="com.demo.minidoamp.api.vo.WarnTrendVO" databaseId="mysql">
+        SELECT DATE_FORMAT(warn_time, '%Y-%m-%d') AS stat_date,
+               COUNT(*) AS warn_count,
+               MAX(warn_level) AS max_warn_level
+        FROM t_warn_record
+        WHERE warn_time <![CDATA[>=]]> #{startTime}
+        GROUP BY DATE_FORMAT(warn_time, '%Y-%m-%d')
+        ORDER BY stat_date DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectTrend" resultType="com.demo.minidoamp.api.vo.WarnTrendVO" databaseId="h2">
+        SELECT FORMATDATETIME(warn_time, 'yyyy-MM-dd') AS stat_date,
+               COUNT(*) AS warn_count,
+               MAX(warn_level) AS max_warn_level
+        FROM t_warn_record
+        WHERE warn_time <![CDATA[>=]]> #{startTime}
+        GROUP BY FORMATDATETIME(warn_time, 'yyyy-MM-dd')
+        ORDER BY stat_date DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

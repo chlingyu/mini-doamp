@@ -211,6 +211,15 @@
 ### 目标
 实现数据库 Adapter 抽象层，基于 databaseIdProvider 自动识别数据库类型
 
+### 当前状态（2026-03-07）
+
+- [x] 已配置 MyBatis `databaseIdProvider`，自动识别 `mysql / h2`
+- [x] 已实现 `DatabaseAdapter`、`MysqlAdapter`、`H2Adapter`、`DatabaseAdapterFactory`
+- [x] 已从纯 demo 扩展到真实业务 SQL：预警趋势、指标类型汇总、任务日志原生分页
+- [x] 已实测 H2 模式下真实业务接口返回 `200`
+- [x] 已启动 Docker 中的 MySQL / Redis / RabbitMQ，并确认端口可达
+- [x] 已实测默认 MySQL profile 启动成功，登录接口与真实业务方言差异接口返回 `200`
+
 ### 任务清单
 
 1. 配置 MyBatis `databaseIdProvider`（自动识别 MySQL/H2）

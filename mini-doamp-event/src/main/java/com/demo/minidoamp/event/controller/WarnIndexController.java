@@ -3,12 +3,14 @@ package com.demo.minidoamp.event.controller;
 import com.demo.minidoamp.api.R;
 import com.demo.minidoamp.api.dto.request.WarnIndexRequest;
 import com.demo.minidoamp.api.dto.response.PageResponse;
+import com.demo.minidoamp.api.vo.WarnIndexTypeSummaryVO;
 import com.demo.minidoamp.api.vo.WarnIndexVO;
 import com.demo.minidoamp.event.service.WarnIndexService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/warn/indexes")
@@ -28,6 +30,11 @@ public class WarnIndexController {
     @GetMapping("/{id}")
     public R<WarnIndexVO> getById(@PathVariable Long id) {
         return R.ok(warnIndexService.getById(id));
+    }
+
+    @GetMapping("/type-summary")
+    public R<List<WarnIndexTypeSummaryVO>> typeSummary() {
+        return R.ok(warnIndexService.typeSummary());
     }
 
     @PostMapping

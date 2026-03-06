@@ -7,6 +7,7 @@ import com.demo.minidoamp.api.ErrorCode;
 import com.demo.minidoamp.api.dto.request.ThresholdDTO;
 import com.demo.minidoamp.api.dto.request.WarnIndexRequest;
 import com.demo.minidoamp.api.dto.response.PageResponse;
+import com.demo.minidoamp.api.vo.WarnIndexTypeSummaryVO;
 import com.demo.minidoamp.api.vo.WarnIndexVO;
 import com.demo.minidoamp.core.entity.WarnIndex;
 import com.demo.minidoamp.core.entity.WarnThreshold;
@@ -49,6 +50,10 @@ public class WarnIndexService {
             throw new BusinessException(ErrorCode.INDEX_NOT_FOUND);
         }
         return toVO(index);
+    }
+
+    public List<WarnIndexTypeSummaryVO> typeSummary() {
+        return indexMapper.selectTypeSummary();
     }
 
     @Transactional

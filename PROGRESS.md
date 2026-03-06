@@ -25,8 +25,34 @@
 | 3 | Redis缓存（Cache Aside、延迟双删、防雪崩、防穿透） | ✅ 完成 | compileJava通过，Codex 1轮审查通过 |
 | 4 | 定时调度（XXL-Job、ShedLock动态锁名） | ✅ 完成 | compileJava通过，Codex 2轮审查通过，冒烟测试通过 |
 | 5 | SOP工作流（状态机、流程引擎、回退任意节点） | ✅ 完成 | compileJava通过，Codex 4轮审查通过 |
-| 6 | 多库适配（Adapter工厂、databaseIdProvider） | ✅ 完成 | compileJava通过，Codex 2轮审查通过 |
+| 6 | 多库适配（Adapter工厂、databaseIdProvider） | ✅ 完成 | compileJava/classes通过；已从 demo 扩展到真实业务 SQL（预警趋势/指标类型汇总/任务日志原生分页）；H2 / MySQL 两套运行态均已实测通过 |
 | 7 | 前端（Vue3、AntV X6、Vuex、Axios） | ✅ 完成 | 后端 compileJava通过，前端 npm run build通过，Codex 自审通过 |
+
+## 最近更新（2026-03-07）
+
+- Phase 6 已从“只有 DemoDialectMapper 演示”补强为“真实业务接口接入多库适配”
+- 新增真实业务方言差异接口：`/api/warn/records/trend`、`/api/warn/indexes/type-summary`、`/api/system/job/log/native`
+- 已验证 H2 下 3 个接口返回 `200`，其中日期函数差异、字符串聚合差异、分页语法差异均已实际跑通
+- 前端 API 已补齐调用入口：`mini-doamp-vue/src/api/warn.js`、`mini-doamp-vue/src/api/system.js`
+- 本轮验证结果：后端 `compileJava` / `classes` 通过，前端 `npm run build` 通过
+- 已启动 `docker-compose.yml` 中的 MySQL / Redis / RabbitMQ 容器，端口 `3306/6379/5672` 已连通
+- MySQL 运行态已补完：默认 profile 在 `10102` 端口启动成功，日志确认连接 MySQL / RabbitMQ 成功，登录接口与 `/api/warn/records/trend`、`/api/warn/indexes/type-summary`、`/api/system/job/log/native` 均返回 `200`
+
+## 睡前交接（2026-03-07 夜）
+
+- 已完成对 `Phase 0~7` 的总审，结论为：**整体已基本完成，可支撑项目主线演示与大部分面试表述**
+- 运行态验证已覆盖两套环境：`H2` 与 `MySQL` 均已启动成功，核心登录/预警/多库适配接口均返回 `200`
+- 当前主干代码可视为“可演示版本”，下一轮优先处理的是**安全与简历支撑强度**，不是大规模功能开发
+- 当前必须优先补的 2 个问题：
+  - `自定义 SQL` 预警目前仍以正则黑名单校验为主，需升级为更强的白名单/参数化/AST 级防注入方案
+  - `application.yml` 里仍保留了明文 `DB/RabbitMQ/JWT` 敏感配置，需迁移到环境变量或本地覆盖配置
+- 次优先改进项：
+  - 让旧 `refresh token` 在刷新后立即失效，增强 JWT 刷新链路安全性
+  - 进一步拉开 7 类预警策略的查询实现差异，增强“7 种类型各有独立逻辑”的面试说服力
+- 明早接手时，建议按顺序继续：
+  - 先修 `CustomSqlValidator` 与 `CustomSqlWarnStrategy`
+  - 再迁移敏感配置到环境变量
+  - 最后做一轮针对简历 8 条的复审收口
 
 ## 关键设计决策（跨文件已统一）
 
@@ -66,6 +92,9 @@
 - 多库适配：databaseIdProvider(MySQL→mysql, H2→h2) + DatabaseAdapter接口 + 工厂模式路由
 - 方言差异3项：dateFormat(DATE_FORMAT vs FORMATDATETIME)、paginate(参数顺序)、groupConcat(SEPARATOR)
 - Mapper XML 用 databaseId 属性编写差异化 SQL，MyBatis 自动选择匹配语句
+- 多库适配已落到真实业务 SQL：预警趋势按日期聚合、指标类型汇总、任务日志原生分页不再只是 demo 演示
+- H2 聚合函数采用 `LISTAGG(... ) WITHIN GROUP`，MySQL 采用 `GROUP_CONCAT(... SEPARATOR ', ')`
+- 多库适配联调结果：H2 与 MySQL（Docker）两套运行态均已验证通过；默认 profile 识别数据库类型为 `MYSQL`
 - MybatisPlusConfig 动态检测 DbType（不再硬编码 MYSQL），PaginationInnerInterceptor 适配
 - H2 profile：auto-startup=false 关闭消费者（不排除 Rabbit 自动配置，Producer try-catch 容错）
 - schema-h2.sql：移除 ENGINE/COMMENT/ON UPDATE，JSON→TEXT，TIMESTAMP(3)→TIMESTAMP

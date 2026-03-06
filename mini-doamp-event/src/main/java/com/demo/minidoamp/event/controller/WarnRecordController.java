@@ -3,9 +3,12 @@ package com.demo.minidoamp.event.controller;
 import com.demo.minidoamp.api.R;
 import com.demo.minidoamp.api.dto.response.PageResponse;
 import com.demo.minidoamp.api.vo.WarnRecordVO;
+import com.demo.minidoamp.api.vo.WarnTrendVO;
 import com.demo.minidoamp.event.service.WarnRecordService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/warn/records")
@@ -21,5 +24,10 @@ public class WarnRecordController {
             @RequestParam(required = false) Long ruleId,
             @RequestParam(required = false) Long indexId) {
         return R.ok(warnRecordService.page(pageNum, pageSize, ruleId, indexId));
+    }
+
+    @GetMapping("/trend")
+    public R<List<WarnTrendVO>> trend(@RequestParam(defaultValue = "7") int days) {
+        return R.ok(warnRecordService.trend(days));
     }
 }

@@ -56,6 +56,14 @@ export function listWarnRecords(params) {
   return request({ url: '/warn/records', method: 'get', params });
 }
 
+export function getWarnRecordTrend(params) {
+  return request({ url: '/warn/records/trend', method: 'get', params });
+}
+
+export function getWarnIndexTypeSummary() {
+  return request({ url: '/warn/indexes/type-summary', method: 'get' });
+}
+
 export function listMsgRecords(params) {
   return request({ url: '/msg/records', method: 'get', params });
 }

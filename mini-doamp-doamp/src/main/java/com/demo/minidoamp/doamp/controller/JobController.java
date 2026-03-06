@@ -40,6 +40,14 @@ public class JobController {
         return R.ok(jobService.logPage(pageNum, pageSize, jobName));
     }
 
+    @GetMapping("/log/native")
+    public R<PageResponse<JobExecLog>> nativeLog(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) String jobName) {
+        return R.ok(jobService.nativeLogPage(pageNum, pageSize, jobName));
+    }
+
     private Map<String, Object> jobDef(String name, String handler, String cron, String desc) {
         Map<String, Object> m = new HashMap<>();
         m.put("jobName", name);

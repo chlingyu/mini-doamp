@@ -42,3 +42,7 @@ export function listJobs() {
 export function listJobLogs(params) {
   return request({ url: '/system/job/log', method: 'get', params });
 }
+
+export function listNativeJobLogs(params) {
+  return request({ url: '/system/job/log/native', method: 'get', params });
+}

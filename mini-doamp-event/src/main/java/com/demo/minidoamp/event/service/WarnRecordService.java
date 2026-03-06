@@ -4,11 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.demo.minidoamp.api.dto.response.PageResponse;
 import com.demo.minidoamp.api.vo.WarnRecordVO;
+import com.demo.minidoamp.api.vo.WarnTrendVO;
 import com.demo.minidoamp.core.entity.WarnRecord;
 import com.demo.minidoamp.core.mapper.WarnRecordMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,6 +35,17 @@ public class WarnRecordService {
         List<WarnRecordVO> list = page.getRecords().stream()
                 .map(this::toVO).collect(Collectors.toList());
         return PageResponse.of(list, page.getTotal(), pageNum, pageSize);
+    }
+
+    public List<WarnTrendVO> trend(int days) {
+        int normalizedDays = Math.max(1, Math.min(days, 30));
+        LocalDateTime startTime = LocalDateTime.now()
+                .minusDays(normalizedDays - 1L)
+                .withHour(0)
+                .withMinute(0)
+                .withSecond(0)
+                .withNano(0);
+        return recordMapper.selectTrend(startTime, normalizedDays);
     }
 
     private WarnRecordVO toVO(WarnRecord r) {
