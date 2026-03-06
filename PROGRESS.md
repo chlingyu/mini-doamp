@@ -79,6 +79,7 @@
 - 权限映射：后端由 `security.permission` 配置项集中维护角色→权限映射，不再在代码里通过 roleCode 关键字猜测权限
 - 登出撤销：logout 接口接收 refreshToken，基于 Redis 黑名单撤销 access/refresh token，refresh 与鉴权过滤器均校验黑名单
 - JWT 配置：`jwt.secret` / `jwt.expiration` / `jwt.refresh-expiration` 改为必须显式配置，避免代码内默认密钥进入运行环境
+- 联调验证：已实测 `--spring.profiles.active=h2` 可启动成功，Tomcat 监听 `9999`，H2 控制台可用；未启动 XXL-Job Admin 时会有注册失败日志，但不阻塞大部分页面联调
 
 ## 工作流程
 
