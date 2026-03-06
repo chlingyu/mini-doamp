@@ -30,3 +30,6 @@ mini-doamp-vue/dist/
 
 # Claude
 .claude/
+
+# Local runtime logs
+.codex-run/

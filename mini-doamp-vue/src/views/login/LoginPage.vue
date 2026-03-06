@@ -43,6 +43,8 @@ export default {
         await store.dispatch('user/login', formState);
         message.success('登录成功');
         router.replace(route.query.redirect || '/dashboard');
+      } catch (error) {
+        // 请求层已统一提示错误，这里兜底避免未捕获 Promise 触发开发环境报错覆盖层
       } finally {
         submitting.value = false;
       }
