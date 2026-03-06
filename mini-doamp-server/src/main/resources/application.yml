@@ -37,6 +37,42 @@ mybatis-plus:
 jwt:
   secret: miniDoampSecretKey1234567890123456
   expiration: 86400000
+  refresh-expiration: 604800000
+
+security:
+  permission:
+    defaults:
+      - dashboard.view
+    role-mappings:
+      ADMIN:
+        - dashboard.view
+        - warn.index
+        - warn.rule
+        - warn.record
+        - warn.message
+        - sop.workflow
+        - sop.template
+        - sop.task
+        - sop.approve
+        - system.dict
+        - system.job
+        - system.user
+      OPERATOR:
+        - dashboard.view
+        - warn.index
+        - warn.rule
+        - warn.record
+        - warn.message
+        - sop.task
+        - system.dict
+        - system.job
+      AUDITOR:
+        - dashboard.view
+        - warn.record
+        - warn.message
+        - sop.workflow
+        - sop.approve
+        - sop.task
 
 xxl:
   job:

@@ -1,6 +1,7 @@
 package com.demo.minidoamp.sop.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.demo.minidoamp.api.BusinessException;
 import com.demo.minidoamp.api.ErrorCode;
@@ -15,6 +16,8 @@ import com.demo.minidoamp.core.enums.TaskStatus;
 import com.demo.minidoamp.core.mapper.*;
 import com.demo.minidoamp.sop.engine.SopNotifier;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -176,16 +179,47 @@ public class SopTaskService {
         if (task == null) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         }
+
+        SopTaskExec currentExec = taskExecMapper.selectOne(
+                new LambdaQueryWrapper<SopTaskExec>()
+                        .eq(SopTaskExec::getTaskId, id)
+                        .eq(SopTaskExec::getStatus, TaskExecStatus.PENDING.getCode())
+                        .orderByDesc(SopTaskExec::getCreateTime)
+                        .last("LIMIT 1"));
+        if (currentExec == null) {
+            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION);
+        }
+        SopNode currentNode = nodeMapper.selectById(currentExec.getNodeId());
+        if (currentNode == null) {
+            throw new BusinessException(ErrorCode.NODE_NOT_FOUND);
+        }
+        validateTerminateOperator(currentExec, currentNode, operatorId);
+
         TaskStatus current = TaskStatus.of(task.getStatus());
         if (!current.canTransitTo(TaskStatus.TERMINATED)) {
             throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION);
         }
+
+        claimActiveExec(currentExec, operatorId);
         String fromStatus = current.getCode();
         task.setStatus(TaskStatus.TERMINATED.getCode());
         task.setCompleteTime(LocalDateTime.now());
         taskMapper.updateById(task);
 
-        writeLog(task.getId(), null, null, operatorId, "TERMINATE",
+        List<SopTaskExec> activeExecs = taskExecMapper.selectList(
+                new LambdaQueryWrapper<SopTaskExec>()
+                        .eq(SopTaskExec::getTaskId, id)
+                        .in(SopTaskExec::getStatus,
+                                TaskExecStatus.PENDING.getCode(),
+                                TaskExecStatus.PROCESSING.getCode())
+        );
+        for (SopTaskExec exec : activeExecs) {
+            exec.setStatus(TaskExecStatus.ROLLED_BACK.getCode());
+            exec.setEndTime(LocalDateTime.now());
+            taskExecMapper.updateById(exec);
+        }
+
+        writeLog(task.getId(), currentExec.getId(), currentExec.getNodeId(), operatorId, "TERMINATE",
                 fromStatus, TaskStatus.TERMINATED.getCode(), null);
         sopNotifier.send(task, fromStatus, task.getStatus(), operatorId);
     }
@@ -317,5 +351,32 @@ public class SopTaskService {
             }
         }
         return vo;
+    }
+
+    private void validateTerminateOperator(SopTaskExec exec, SopNode currentNode, Long operatorId) {
+        if (exec.getAssigneeId() != null && !exec.getAssigneeId().equals(operatorId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+        String requiredPermission = "APPROVE".equals(currentNode.getNodeType()) ? "sop.approve" : "sop.task";
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean allowed = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> requiredPermission.equals(authority.getAuthority()));
+        if (!allowed) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+    }
+
+    private void claimActiveExec(SopTaskExec exec, Long operatorId) {
+        LambdaUpdateWrapper<SopTaskExec> updateWrapper = new LambdaUpdateWrapper<SopTaskExec>()
+                .eq(SopTaskExec::getId, exec.getId())
+                .eq(SopTaskExec::getStatus, TaskExecStatus.PENDING.getCode())
+                .set(SopTaskExec::getStatus, TaskExecStatus.PROCESSING.getCode());
+        if (exec.getAssigneeId() != null) {
+            updateWrapper.eq(SopTaskExec::getAssigneeId, operatorId);
+        }
+        int updated = taskExecMapper.update(null, updateWrapper);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION);
+        }
     }
 }

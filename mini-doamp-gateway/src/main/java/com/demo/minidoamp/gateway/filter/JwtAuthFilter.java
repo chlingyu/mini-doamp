@@ -1,6 +1,8 @@
 package com.demo.minidoamp.gateway.filter;
 
 import com.demo.minidoamp.gateway.config.JwtUtil;
+import com.demo.minidoamp.gateway.service.PermissionService;
+import com.demo.minidoamp.gateway.service.TokenBlacklistService;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -15,13 +17,16 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final TokenBlacklistService tokenBlacklistService;
+    private final PermissionService permissionService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -30,15 +35,20 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
         if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
             String token = header.substring(7);
-            if (jwtUtil.isValid(token) && jwtUtil.isAccessToken(token)) {
+            if (jwtUtil.isValid(token)
+                    && jwtUtil.isAccessToken(token)
+                    && !tokenBlacklistService.isBlacklisted(token)) {
                 Claims claims = jwtUtil.parseToken(token);
-                String username = claims.getSubject();
                 Long userId = claims.get("userId", Long.class);
+                List<SimpleGrantedAuthority> authorities = permissionService.resolvePermissionsByUserId(userId)
+                        .stream()
+                        .map(SimpleGrantedAuthority::new)
+                        .collect(Collectors.toList());
 
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(
                                 userId, null,
-                                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                                authorities
                         );
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }

@@ -26,7 +26,7 @@
 | 4 | 定时调度（XXL-Job、ShedLock动态锁名） | ✅ 完成 | compileJava通过，Codex 2轮审查通过，冒烟测试通过 |
 | 5 | SOP工作流（状态机、流程引擎、回退任意节点） | ✅ 完成 | compileJava通过，Codex 4轮审查通过 |
 | 6 | 多库适配（Adapter工厂、databaseIdProvider） | ✅ 完成 | compileJava通过，Codex 2轮审查通过 |
-| 7 | 前端（Vue3、AntV X6、Vuex、Axios） | 未开始 | |
+| 7 | 前端（Vue3、AntV X6、Vuex、Axios） | ✅ 完成 | 后端 compileJava通过，前端 npm run build通过，Codex 自审通过 |
 
 ## 关键设计决策（跨文件已统一）
 
@@ -70,6 +70,15 @@
 - H2 profile：auto-startup=false 关闭消费者（不排除 Rabbit 自动配置，Producer try-catch 容错）
 - schema-h2.sql：移除 ENGINE/COMMENT/ON UPDATE，JSON→TEXT，TIMESTAMP(3)→TIMESTAMP
 - republish() 补 try-catch 回写 FAILED 状态，与 publish() 容错一致
+- 前端：Vue CLI 5 + Vue 3 + Vuex 4 + Vue Router 4 + Ant Design Vue 3 + AntV X6
+- 请求层：Axios 统一封装，请求头注入 Bearer Token，401 自动 refresh，403 自动跳转工作台
+- 登录态：localStorage 持久化 access/refresh token，Vuex 恢复用户信息与权限映射
+- 流程设计器：FlowDesigner 基于 AntV X6 拖拽编辑，FlowViewer 只读渲染并高亮当前节点
+- 认证接口补齐：新增 /api/auth/userInfo 与 /api/auth/logout 支撑前端登录态闭环
+- 权限控制：前端不再硬编码角色权限，改为后端登录/刷新/userInfo 接口统一下发 permissions 集合；SOP 路由与页面按 `sop.task` / `sop.approve` 区分处理权限
+- 权限映射：后端由 `security.permission` 配置项集中维护角色→权限映射，不再在代码里通过 roleCode 关键字猜测权限
+- 登出撤销：logout 接口接收 refreshToken，基于 Redis 黑名单撤销 access/refresh token，refresh 与鉴权过滤器均校验黑名单
+- JWT 配置：`jwt.secret` / `jwt.expiration` / `jwt.refresh-expiration` 改为必须显式配置，避免代码内默认密钥进入运行环境
 
 ## 工作流程
 

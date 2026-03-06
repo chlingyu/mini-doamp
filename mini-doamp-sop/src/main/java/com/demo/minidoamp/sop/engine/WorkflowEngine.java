@@ -1,6 +1,7 @@
 package com.demo.minidoamp.sop.engine;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.demo.minidoamp.api.BusinessException;
 import com.demo.minidoamp.api.ErrorCode;
 import com.demo.minidoamp.core.entity.SopNode;
@@ -15,6 +16,8 @@ import com.demo.minidoamp.core.mapper.SopTaskMapper;
 import com.demo.minidoamp.sop.service.SopTaskService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,6 +65,10 @@ public class WorkflowEngine {
         if (currentNode == null) {
             throw new BusinessException(ErrorCode.NODE_NOT_FOUND);
         }
+
+        validateOperator(exec, currentNode, action, operatorId);
+        claimPendingExec(exec, operatorId);
+        exec = taskExecMapper.selectById(taskExecId);
 
         // 状态机校验
         TaskStatus currentStatus = TaskStatus.of(task.getStatus());
@@ -163,12 +170,20 @@ public class WorkflowEngine {
         if (currentExec == null) {
             throw new BusinessException(ErrorCode.TASK_EXEC_NOT_FOUND);
         }
+        SopTask task = taskMapper.selectById(currentExec.getTaskId());
+        SopNode currentNode = nodeMapper.selectById(currentExec.getNodeId());
+        if (currentNode == null) {
+            throw new BusinessException(ErrorCode.NODE_NOT_FOUND);
+        }
+        validateOperator(currentExec, currentNode, ActionType.ROLLBACK.getCode(), operatorId);
+        claimPendingExec(currentExec, operatorId);
+        currentExec = taskExecMapper.selectById(taskExecId);
+
         SopNode targetNode = nodeMapper.selectById(targetNodeId);
         if (targetNode == null || "START".equals(targetNode.getNodeType())
                 || "END".equals(targetNode.getNodeType())) {
             throw new BusinessException(ErrorCode.ROLLBACK_NOT_ALLOWED);
         }
-        SopTask task = taskMapper.selectById(currentExec.getTaskId());
 
         // 校验目标节点必须有已完成的执行记录
         Long doneCount = taskExecMapper.selectCount(
@@ -224,5 +239,57 @@ public class WorkflowEngine {
 
     private void sendNotification(SopTask task, String fromStatus, String toStatus, Long operatorId) {
         sopNotifier.send(task, fromStatus, toStatus, operatorId);
+    }
+
+    private void validateOperator(SopTaskExec exec, SopNode currentNode, String action, Long operatorId) {
+        if (!TaskExecStatus.PENDING.getCode().equals(exec.getStatus())) {
+            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION);
+        }
+        if (exec.getAssigneeId() != null && !exec.getAssigneeId().equals(operatorId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+        validateAction(currentNode, action);
+        String requiredPermission = "APPROVE".equals(currentNode.getNodeType()) ? "sop.approve" : "sop.task";
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean allowed = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> requiredPermission.equals(authority.getAuthority()));
+        if (!allowed) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+    }
+
+    private void validateAction(SopNode currentNode, String action) {
+        if (ActionType.ROLLBACK.getCode().equals(action)) {
+            return;
+        }
+        if (ActionType.REJECT.getCode().equals(action) && !"APPROVE".equals(currentNode.getNodeType())) {
+            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION);
+        }
+        if ("APPROVE".equals(currentNode.getNodeType())) {
+            if (!ActionType.APPROVE.getCode().equals(action) && !ActionType.REJECT.getCode().equals(action)) {
+                throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION);
+            }
+            return;
+        }
+        if (!ActionType.SUBMIT.getCode().equals(action)) {
+            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION);
+        }
+    }
+
+    private void claimPendingExec(SopTaskExec exec, Long operatorId) {
+        LambdaUpdateWrapper<SopTaskExec> updateWrapper = new LambdaUpdateWrapper<SopTaskExec>()
+                .eq(SopTaskExec::getId, exec.getId())
+                .eq(SopTaskExec::getStatus, TaskExecStatus.PENDING.getCode())
+                .set(SopTaskExec::getStatus, TaskExecStatus.PROCESSING.getCode());
+        if (exec.getStartTime() == null) {
+            updateWrapper.set(SopTaskExec::getStartTime, LocalDateTime.now());
+        }
+        if (exec.getAssigneeId() != null) {
+            updateWrapper.eq(SopTaskExec::getAssigneeId, operatorId);
+        }
+        int updated = taskExecMapper.update(null, updateWrapper);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION);
+        }
     }
 }
