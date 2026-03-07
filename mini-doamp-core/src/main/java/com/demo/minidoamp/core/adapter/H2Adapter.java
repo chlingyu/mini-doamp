@@ -26,6 +26,7 @@ public class H2Adapter implements DatabaseAdapter {
 
     @Override
     public String groupConcat(String column) {
-        return "GROUP_CONCAT(" + column + ")";
+        // H2 使用 LISTAGG 代替 MySQL 的 GROUP_CONCAT
+        return "LISTAGG(" + column + ", ',')";
     }
 }

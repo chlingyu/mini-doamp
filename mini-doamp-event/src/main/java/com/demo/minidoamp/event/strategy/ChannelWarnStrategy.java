@@ -96,12 +96,20 @@ public class ChannelWarnStrategy extends AbstractWarnStrategy {
                             .divide(prevValue.abs(), 4, RoundingMode.HALF_UP)
                             .multiply(BigDecimal.valueOf(100));
 
-                    // 仅当变化率超出固定阈值时产生趋势预警
+                    // 变化率超出固定阈值时，独立生成趋势预警记录
                     if (changeRate.abs().compareTo(rateThreshold) > 0) {
                         String changeLabel = String.format("%s[环比%+.1f%%]",
                                 curr.getGroupKey(), changeRate.doubleValue());
-                        records.addAll(checkValue(index.getId(), index.getIndexType(),
-                                curr.getIndexValue(), changeLabel, thresholds));
+                        WarnRecord r = new WarnRecord();
+                        r.setIndexId(index.getId());
+                        r.setIndexType(index.getIndexType());
+                        r.setWarnLevel(2); // 趋势预警级别
+                        r.setCurrentValue(changeRate);
+                        r.setThresholdValue("环比变化率超 ±" + rateThreshold + "%");
+                        r.setGroupKey(changeLabel);
+                        r.setWarnTime(java.time.LocalDateTime.now());
+                        r.setCreateTime(java.time.LocalDateTime.now());
+                        records.add(r);
                     }
                 }
             }
