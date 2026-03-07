@@ -22,6 +22,7 @@
 
 ```powershell
 cd D:\Projects\mini-doamp
+$env:JWT_SECRET="miniDoampDevKey12345678901234567890"
 .\gradlew.bat :mini-doamp-server:bootRun --args="--spring.profiles.active=h2"
 ```
 

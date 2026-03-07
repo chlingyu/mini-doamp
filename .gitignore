@@ -33,3 +33,8 @@ mini-doamp-vue/dist/
 
 # Local runtime logs
 .codex-run/
+
+# Environment secrets (only .env.example is tracked)
+.env
+.env.*
+!.env.example

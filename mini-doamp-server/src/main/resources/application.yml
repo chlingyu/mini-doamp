@@ -5,19 +5,19 @@ spring:
   application:
     name: mini-doamp
   datasource:
-    url: jdbc:mysql://localhost:3306/mini_doamp?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: root
+    url: ${DB_URL:jdbc:mysql://localhost:3306/mini_doamp?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
   redis:
     host: localhost
     port: 6379
     database: 0
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PORT:5672}
+    username: ${RABBIT_USERNAME:guest}
+    password: ${RABBIT_PASSWORD:guest}
     virtual-host: /
     listener:
       simple:
@@ -35,9 +35,9 @@ mybatis-plus:
       logic-not-delete-value: 0
 
 jwt:
-  secret: miniDoampSecretKey1234567890123456
-  expiration: 86400000
-  refresh-expiration: 604800000
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:86400000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
 security:
   permission:
@@ -83,7 +83,7 @@ xxl:
       port: 9998
       logpath: /data/applogs/xxl-job/jobhandler
       logretentiondays: 30
-    accessToken: default_token
+    accessToken: ${XXL_JOB_ACCESS_TOKEN:default_token}
 
 logging:
   config: classpath:log4j2.xml
