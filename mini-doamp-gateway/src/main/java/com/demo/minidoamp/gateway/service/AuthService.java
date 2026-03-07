@@ -70,6 +70,10 @@ public class AuthService {
 
         String newToken = jwtUtil.generateToken(userId, user.getUsername());
         String newRefreshToken = jwtUtil.generateRefreshToken(userId, user.getUsername());
+
+        // 旧 refresh token 立即失效，防止重放攻击
+        tokenBlacklistService.blacklist(refreshToken);
+
         return buildLoginResponse(user, newToken, newRefreshToken);
     }
 
@@ -89,7 +93,8 @@ public class AuthService {
         result.put("roleCode", role != null ? role.getRoleCode() : null);
         result.put("roleName", role != null ? role.getRoleName() : null);
         result.put("deptName", dept != null ? dept.getDeptName() : null);
-        result.put("permissions", permissionService.resolvePermissionsByRoleCode(role != null ? role.getRoleCode() : null));
+        result.put("permissions",
+                permissionService.resolvePermissionsByRoleCode(role != null ? role.getRoleCode() : null));
         return result;
     }
 
