@@ -38,21 +38,23 @@
 - 已启动 `docker-compose.yml` 中的 MySQL / Redis / RabbitMQ 容器，端口 `3306/6379/5672` 已连通
 - MySQL 运行态已补完：默认 profile 在 `10102` 端口启动成功，日志确认连接 MySQL / RabbitMQ 成功，登录接口与 `/api/warn/records/trend`、`/api/warn/indexes/type-summary`、`/api/system/job/log/native` 均返回 `200`
 
-## 睡前交接（2026-03-07 夜）
+## 安全收口与策略差异化（2026-03-07 午）
 
-- 已完成对 `Phase 0~7` 的总审，结论为：**整体已基本完成，可支撑项目主线演示与大部分面试表述**
-- 运行态验证已覆盖两套环境：`H2` 与 `MySQL` 均已启动成功，核心登录/预警/多库适配接口均返回 `200`
-- 当前主干代码可视为“可演示版本”，下一轮优先处理的是**安全与简历支撑强度**，不是大规模功能开发
-- 当前必须优先补的 2 个问题：
-  - `自定义 SQL` 预警目前仍以正则黑名单校验为主，需升级为更强的白名单/参数化/AST 级防注入方案
-  - `application.yml` 里仍保留了明文 `DB/RabbitMQ/JWT` 敏感配置，需迁移到环境变量或本地覆盖配置
-- 次优先改进项：
-  - 让旧 `refresh token` 在刷新后立即失效，增强 JWT 刷新链路安全性
-  - 进一步拉开 7 类预警策略的查询实现差异，增强“7 种类型各有独立逻辑”的面试说服力
-- 明早接手时，建议按顺序继续：
-  - 先修 `CustomSqlValidator` 与 `CustomSqlWarnStrategy`
-  - 再迁移敏感配置到环境变量
-  - 最后做一轮针对简历 8 条的复审收口
+- **P0-1 CustomSqlValidator 升级**：从正则黑名单升级为 6 层结构化白名单校验（基础检查 → 语法子集 → 表白名单 → 函数白名单 → 精确 value 别名 → 反注入结构）
+- 新增错误码 `CUSTOM_SQL_TABLE_DENIED(2008)` / `CUSTOM_SQL_FUNC_DENIED(2009)`
+- 新增 `CustomSqlValidatorTest` 25 个单元测试，GPT 2 轮审查通过
+- **P0-2 敏感配置迁移**：`application.yml` 中 10 个敏感值改为 `${ENV_VAR:default}` 占位符，`JWT_SECRET` 无默认值强制外部注入
+- 新增 `.env.example` 文档化所有环境变量，`.gitignore` 覆盖 `.env` + `.env.*`
+- **P1-1 Refresh Token Rotation**：`AuthService.refresh()` 生成新 token 对后立即拉黑旧 refresh token，防止重放攻击
+- **P1-2 策略差异化增强**：7 种策略各有独立查询逻辑
+  - Running：最新值 + 7 期滑动均值趋势
+  - Bank：逐家银行对比 + 超限占比统计
+  - Channel：绝对值 + 日环比变化率 ±20%
+  - Employee：floor>=10 过滤 + 匿名记录跳过
+  - Branch：全部营业部算术均值对比
+  - 删除无用的 `AbstractGroupWarnStrategy`
+- **最终抛光**：ChannelWarnStrategy 趋势记录语义修正（changeRate 作为 currentValue），H2Adapter.groupConcat() 改为 LISTAGG
+- **GPT 总审通过**：简历第 1/2/3/4/5/7 条均已确认成立，无硬伤
 
 ## 关键设计决策（跨文件已统一）
 
@@ -63,11 +65,11 @@
 - 消息状态枚举：PENDING/SENT/FAILED/RETRYING/ALARM
 - TaskStatus 终态：COMPLETED / REJECTED / TERMINATED（无"已回退"）
 - JWT 双 token：access（24h）+ refresh（7d），Filter 显式校验 type=access，refresh 端点用 DB 最新用户名签发
-- refresh token 无状态，jti 预留撤销扩展点，生产方案口述（Redis 黑名单/tokenVersion）
+- refresh token rotation：刷新后旧 refresh token 立即拉黑（Redis SETEX + 剩余 TTL 自动过期），防止重放攻击
 - 用户 DTO 拆分：UserCreateRequest（username+password 必填）/ UserUpdateRequest（无 username）
 - 删除部门/角色前校验关联用户和子部门，创建/更新用户校验 deptId/roleId 存在性
-- 预警引擎：Map<IndexType, WarnStrategy> 路由，无 if-else；7种策略独立实现类
-- 自定义 SQL 三层校验：白名单(SELECT)+黑名单(DML)+注入防护(分号/注释)，保存前+执行前两处校验
+- 预警引擎：Map<IndexType, WarnStrategy> 路由，无 if-else；7种策略独立实现类，各有独立查询与判定逻辑
+- 自定义 SQL 6 层白名单校验：基础检查 → 语法子集 → 表白名单(6张) → 函数白名单(22个) → 精确 value 别名 → UNION/子查询/INTO 禁止，保存前+执行前双校验
 - 阈值校验：indexType/compareType 强制枚举校验，按 compareType 强制 upper/lower 必填规则
 - gradle-wrapper.properties 改为腾讯云镜像
 - 消息推送：Topic Exchange + 3队列(sms/email/wxwork) + DLX + DLQ，手动ACK
@@ -93,7 +95,7 @@
 - 方言差异3项：dateFormat(DATE_FORMAT vs FORMATDATETIME)、paginate(参数顺序)、groupConcat(SEPARATOR)
 - Mapper XML 用 databaseId 属性编写差异化 SQL，MyBatis 自动选择匹配语句
 - 多库适配已落到真实业务 SQL：预警趋势按日期聚合、指标类型汇总、任务日志原生分页不再只是 demo 演示
-- H2 聚合函数采用 `LISTAGG(... ) WITHIN GROUP`，MySQL 采用 `GROUP_CONCAT(... SEPARATOR ', ')`
+- H2 聚合函数采用 `LISTAGG(column, ',')`，MySQL 采用 `GROUP_CONCAT(... SEPARATOR ', ')`，DatabaseAdapter 与 Mapper XML 已对齐
 - 多库适配联调结果：H2 与 MySQL（Docker）两套运行态均已验证通过；默认 profile 识别数据库类型为 `MYSQL`
 - MybatisPlusConfig 动态检测 DbType（不再硬编码 MYSQL），PaginationInnerInterceptor 适配
 - H2 profile：auto-startup=false 关闭消费者（不排除 Rabbit 自动配置，Producer try-catch 容错）
