@@ -33,6 +33,8 @@ public enum ErrorCode {
     INVALID_INDEX_TYPE(2005, "非法指标类型"),
     INVALID_COMPARE_TYPE(2006, "非法比较方式"),
     THRESHOLD_LIMIT_REQUIRED(2007, "阈值上下限缺失"),
+    CUSTOM_SQL_TABLE_DENIED(2008, "自定义SQL包含未授权表"),
+    CUSTOM_SQL_FUNC_DENIED(2009, "自定义SQL包含未授权函数"),
 
     // SOP相关 3xxx
     WORKFLOW_NOT_FOUND(3001, "流程定义不存在"),
