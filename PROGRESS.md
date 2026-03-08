@@ -28,6 +28,16 @@
 | 6 | 多库适配（Adapter工厂、databaseIdProvider） | ✅ 完成 | compileJava/classes通过；已从 demo 扩展到真实业务 SQL（预警趋势/指标类型汇总/任务日志原生分页）；H2 / MySQL 两套运行态均已实测通过 |
 | 7 | 前端（Vue3、AntV X6、Vuex、Axios） | ✅ 完成 | 后端 compileJava通过，前端 npm run build通过，Codex 自审通过 |
 
+## 最近更新（2026-03-08）
+
+- **Bug 修复：H2 模式中文乱码**
+  - 根因：Windows JVM 默认编码 GBK，导致 UTF-8 SQL 初始化文件被错误解码写入 H2
+  - 修复 1：`application-h2.yml` 添加 `spring.sql.init.encoding: UTF-8`
+  - 修复 2：`mini-doamp-server/build.gradle` 添加 `bootRun { jvmArgs = ['-Dfile.encoding=UTF-8'] }`
+  - API 验证通过：`管理员`、`系统CPU使用率`、`交易金额`、`银行余额` 全部正确
+  - 更新 `CHEATSHEET.md`：jar 启动需手动加 `-Dfile.encoding=UTF-8`
+- 浏览器全功能测试：55 用例外的全页面手动巡检，除中文乱码外未发现其他 bug
+
 ## 最近更新（2026-03-07）
 
 - Phase 6 已从“只有 DemoDialectMapper 演示”补强为“真实业务接口接入多库适配”

@@ -18,8 +18,8 @@
               <a-radio :value="0">停用</a-radio>
             </a-radio-group>
           </a-form-item>
-          <a-form-item label="接收人ID列表">
-            <a-input v-model:value="formState.receiverIds" placeholder="多个用逗号分隔" />
+          <a-form-item label="接收人">
+            <a-select v-model:value="selectedReceiverIds" mode="multiple" :options="userOptions" placeholder="请选择接收人" />
           </a-form-item>
           <a-form-item label="Cron 表达式">
             <a-input v-model:value="formState.cronExpr" placeholder="例如 0 0/5 * * * ?" />
@@ -68,7 +68,7 @@
           </template>
           <a-space direction="vertical" style="width: 100%">
             <div v-for="(item, index) in indexState.thresholds" :key="index" class="threshold-row">
-              <a-input-number v-model:value="item.level" :min="1" placeholder="级别" />
+              <a-select v-model:value="item.level" :options="warnLevelOptions" placeholder="级别" style="width: 120px" />
               <a-select v-model:value="item.compareType" :options="compareTypeOptions" style="width: 140px" />
               <a-input-number v-model:value="item.lowerLimit" :precision="2" placeholder="下限" style="width: 140px" />
               <a-input-number v-model:value="item.upperLimit" :precision="2" placeholder="上限" style="width: 140px" />
@@ -87,6 +87,7 @@ import { computed, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { createWarnRule, getWarnIndex, getWarnRule, listWarnIndexes, updateWarnIndex, updateWarnRule } from '@/api/warn';
+import { listUsers } from '@/api/user';
 
 function createIndexState() {
   return {
@@ -118,6 +119,8 @@ export default {
       cronExpr: '',
       status: 1
     });
+    const selectedReceiverIds = ref([]);
+    const userOptions = ref([]);
     const indexState = reactive(createIndexState());
     const indexOptions = ref([]);
     const notifyTypes = ref([]);
@@ -136,6 +139,11 @@ export default {
       { label: '员工类', value: 'EMPLOYEE' },
       { label: '营业部类', value: 'BRANCH' },
       { label: '自定义SQL类', value: 'CUSTOM_SQL' }
+    ];
+    const warnLevelOptions = [
+      { label: '一般', value: 1 },
+      { label: '重要', value: 2 },
+      { label: '紧急', value: 3 }
     ];
     const compareTypeOptions = [
       { label: '大于', value: 'GT' },
@@ -170,6 +178,14 @@ export default {
       await loadIndexDetail(value);
     };
 
+    const loadUserOptions = async () => {
+      const response = await listUsers({ pageNum: 1, pageSize: 200 });
+      userOptions.value = (response.records || []).map(u => ({
+        label: u.realName || u.username,
+        value: u.id
+      }));
+    };
+
     const loadRuleDetail = async () => {
       if (!formState.id) {
         return;
@@ -183,6 +199,9 @@ export default {
         cronExpr: detail.cronExpr,
         status: detail.status
       });
+      selectedReceiverIds.value = detail.receiverIds
+        ? String(detail.receiverIds).split(',').filter(Boolean).map(Number)
+        : [];
       notifyTypes.value = detail.notifyType ? String(detail.notifyType).split(',').filter(Boolean) : [];
       if (detail.indexId) {
         await loadIndexDetail(detail.indexId);
@@ -215,7 +234,7 @@ export default {
           ruleName: formState.ruleName,
           indexId: formState.indexId,
           notifyType: notifyTypes.value.join(','),
-          receiverIds: formState.receiverIds,
+          receiverIds: selectedReceiverIds.value.join(','),
           cronExpr: formState.cronExpr,
           status: formState.status
         };
@@ -247,6 +266,7 @@ export default {
     const goToIndexList = () => router.push('/warn/indexes');
 
     loadIndexOptions();
+    loadUserOptions();
     loadRuleDetail();
 
     return {
@@ -258,8 +278,11 @@ export default {
       notifyTypeOptions,
       indexTypeOptions,
       compareTypeOptions,
+      warnLevelOptions,
       pageTitle,
       submitLoading,
+      selectedReceiverIds,
+      userOptions,
       handleIndexChange,
       submitForm,
       addThreshold,

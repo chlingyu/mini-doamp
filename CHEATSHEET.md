@@ -28,7 +28,9 @@ $env:JWT_SECRET="miniDoampDevKey12345678901234567890"
 
 - 访问地址：`http://localhost:9999`
 - H2 控制台：`http://localhost:9999/h2-console`
-- 已验证可启动；若未启动 `XXL-Job Admin`，控制台会出现注册失败日志，但不影响大部分页面联调
+- `bootRun` 已自动附加 `-Dfile.encoding=UTF-8`（Windows 中文编码修复）
+- 若直接运行 jar，需手动加：`java -Dfile.encoding=UTF-8 -jar mini-doamp.jar --spring.profiles.active=h2`
+- 若未启动 `XXL-Job Admin`，控制台会出现注册失败日志，但不影响大部分页面联调
 
 ### 前端
 

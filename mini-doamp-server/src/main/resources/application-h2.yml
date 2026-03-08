@@ -16,6 +16,7 @@ spring:
       mode: always
       schema-locations: classpath:sql/schema-h2.sql
       data-locations: classpath:sql/data.sql
+      encoding: UTF-8
   # H2 模式下 Redis 仍可连接，若无 Redis 服务则缓存操作降级
   redis:
     host: localhost

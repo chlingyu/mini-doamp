@@ -20,11 +20,11 @@
             <a-tag color="blue">{{ indexTypeMap[record.indexType] || record.indexType }}</a-tag>
           </template>
         </a-table-column>
-        <a-table-column title="阈值配置" key="thresholds" :width="260">
+        <a-table-column title="阈值配置" key="thresholds" :width="280">
           <template #default="{ record }">
             <a-space wrap>
               <a-tag v-for="item in record.thresholds || []" :key="`${record.id}_${item.id || item.level}`">
-                L{{ item.level }} {{ item.compareType }}
+                {{ warnLevelMap[item.level] || ('L' + item.level) }}: {{ compareTypeMap[item.compareType] || item.compareType }} {{ item.upperLimit || item.lowerLimit }}
               </a-tag>
             </a-space>
           </template>
@@ -91,7 +91,7 @@
           </template>
           <a-space direction="vertical" style="width: 100%">
             <div v-for="(item, index) in formState.thresholds" :key="index" class="threshold-row">
-              <a-input-number v-model:value="item.level" :min="1" placeholder="级别" />
+              <a-select v-model:value="item.level" :options="warnLevelOptions" placeholder="级别" style="width: 120px" />
               <a-select v-model:value="item.compareType" :options="compareTypeOptions" style="width: 140px" />
               <a-input-number v-model:value="item.lowerLimit" :precision="2" placeholder="下限" style="width: 140px" />
               <a-input-number v-model:value="item.upperLimit" :precision="2" placeholder="上限" style="width: 140px" />
@@ -171,6 +171,13 @@ export default {
       { label: '小于等于', value: 'LTE' },
       { label: '等于', value: 'EQ' },
       { label: '区间', value: 'BETWEEN' }
+    ];
+    const warnLevelMap = { 1: '一般', 2: '重要', 3: '紧急' };
+    const compareTypeMap = { GT: '>', LT: '<', GTE: '≥', LTE: '≤', EQ: '=', BETWEEN: '区间' };
+    const warnLevelOptions = [
+      { label: '一般', value: 1 },
+      { label: '重要', value: 2 },
+      { label: '紧急', value: 3 }
     ];
 
     const modalTitle = computed(() => (formState.id ? '编辑预警指标' : '新增预警指标'));
@@ -286,6 +293,9 @@ export default {
       indexTypeMap,
       indexTypeOptions,
       compareTypeOptions,
+      warnLevelMap,
+      compareTypeMap,
+      warnLevelOptions,
       formatDateTime,
       loadData,
       resetQuery,
