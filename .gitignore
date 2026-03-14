@@ -12,6 +12,8 @@ build/
 .settings/
 .project
 .classpath
+bin/
+out/
 
 # OS
 .DS_Store
