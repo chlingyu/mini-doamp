@@ -4,6 +4,7 @@ param(
   [string]$Password = "admin123",
   [int]$Concurrency = 20,
   [int]$RuleId = 0,
+  [int]$SlaTargetMs = 5000,
   [string]$OutFile = ".codex-run/warn-trigger-concurrency-report.json"
 )
 
@@ -42,6 +43,21 @@ if ($RuleId -le 0) {
 }
 
 Write-Host "Using RuleId: $RuleId"
+
+# ── Baseline: single-request median (3 runs) ──
+Write-Host "== Baseline (3 single requests) =="
+$baselines = @()
+for ($b = 1; $b -le 3; $b++) {
+  $bw = [System.Diagnostics.Stopwatch]::StartNew()
+  $br = Invoke-Api -Method "POST" -Url "$BaseUrl/warn/rules/$RuleId/trigger" -Headers $headers
+  $bw.Stop()
+  $runMs = [math]::Round($bw.Elapsed.TotalMilliseconds, 2)
+  $baselines += $runMs
+  Write-Host "  Run ${b}: ${runMs}ms"
+}
+$sortedBaselines = $baselines | Sort-Object
+$baselineMedian = $sortedBaselines[1]
+Write-Host "Baseline median: ${baselineMedian}ms"
 
 $beforeRecords = Invoke-Api -Method "GET" -Url "$BaseUrl/warn/records?pageNum=1&pageSize=1" -Headers $headers
 $beforeTotal = [int]$beforeRecords.data.total
@@ -96,18 +112,33 @@ $sumTriggered = ($results | Measure-Object -Property triggeredCount -Sum).Sum
 $actualRecordDelta = $afterTotal - $beforeTotal
 $p95Index = [math]::Min([math]::Ceiling($durations.Count * 0.95) - 1, $durations.Count - 1)
 
+$p95Val = if ($durations.Count -gt 0) { $durations[$p95Index] } else { 0 }
+$degradation = if ($baselineMedian -gt 0) { [math]::Round(($p95Val / $baselineMedian - 1) * 100, 1) } else { 0 }
+$slaHeadroom = if ($SlaTargetMs -gt 0) { [math]::Round(($SlaTargetMs - $p95Val) / $SlaTargetMs * 100, 1) } else { 0 }
+
 $summary = [ordered]@{
   timestamp = (Get-Date).ToString("s")
   baseUrl = $BaseUrl
   ruleId = $RuleId
   concurrency = $Concurrency
   suiteDurationMs = [math]::Round($suiteWatch.Elapsed.TotalMilliseconds, 2)
+  # ── Baseline ──
+  baselineRuns = @($baselines)
+  baselineMedianMs = $baselineMedian
+  # ── Concurrency metrics ──
   successCount = $success.Count
   failedCount = $failed.Count
   minMs = if ($durations.Count -gt 0) { $durations[0] } else { 0 }
   avgMs = if ($durations.Count -gt 0) { [math]::Round(($durations | Measure-Object -Average).Average, 2) } else { 0 }
-  p95Ms = if ($durations.Count -gt 0) { $durations[$p95Index] } else { 0 }
+  p95Ms = $p95Val
   maxMs = if ($durations.Count -gt 0) { $durations[$durations.Count - 1] } else { 0 }
+  degradationPct = $degradation
+  # ── SLA ──
+  slaTargetMs = $SlaTargetMs
+  slaPassBaseline = ($baselineMedian -lt $SlaTargetMs)
+  slaPassP95 = ($p95Val -lt $SlaTargetMs)
+  slaHeadroomPct = $slaHeadroom
+  # ── Data integrity ──
   beforeWarnRecordTotal = $beforeTotal
   afterWarnRecordTotal = $afterTotal
   actualWarnRecordDelta = $actualRecordDelta
