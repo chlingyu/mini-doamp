@@ -186,3 +186,20 @@
 ## 工作流程
 
 Claude 写代码 → compileJava → 标记"待审查" → Codex 审查（可能多轮）→ 标记"✅ 完成" → git commit + push
+
+## 最近更新（2026-03-30）- Codex 接管补充
+
+- Phase 6 自动化冒烟补齐并复核通过：
+  - `MysqlDialectSmokeTest` 容器镜像从 `mysql:8.0.33` 调整为 `mysql:8.0`（与本地/CI常见缓存一致，避免拉镜像阻塞导致“假卡死”）
+  - 修正分页断言字段：`list` -> `records`（与 `PageResponse` 结构一致）
+  - 实测命令：`./gradlew --no-daemon :mini-doamp-server:test --tests com.demo.minidoamp.integration.MysqlDialectSmokeTest`
+  - 结果：`BUILD SUCCESSFUL`（1/1 通过）
+- Phase 7 前端自动化补齐并通过：
+  - 新增 Jest 测试基线：`mini-doamp-vue/jest.config.js`
+  - 新增脚本：`mini-doamp-vue/package.json` -> `test:unit`
+  - 新增用例：`mini-doamp-vue/tests/unit/request.spec.js`
+    - 用例1：401 触发 refresh token 并重试原请求
+    - 用例2：403 触发无权限提示并跳转 `#/dashboard`
+  - 实测命令：`npm run test:unit`
+  - 结果：`2 passed, 0 failed`
+- 结论：Phase 6/7 的“可自动执行验证”缺口已关闭，可进入下一轮全量回归或面试演示准备。
