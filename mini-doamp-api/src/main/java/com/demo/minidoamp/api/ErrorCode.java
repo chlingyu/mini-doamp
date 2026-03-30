@@ -50,6 +50,7 @@ public enum ErrorCode {
     // 消息相关 4xxx
     MSG_SEND_FAILED(4001, "消息发送失败"),
     MSG_ALREADY_SENT(4002, "消息已发送，不可重复"),
+    MSG_RETRY_EXCEEDED(4003, "已达最大重试次数，需人工处理"),
 
     // 字典相关 5xxx
     DICT_NOT_FOUND(5001, "字典不存在"),

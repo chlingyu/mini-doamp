@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 @Slf4j
 @Service
@@ -21,6 +22,12 @@ public class CacheService {
 
     private final StringRedisTemplate redisTemplate;
     private final ScheduledExecutorService delayDeleteExecutor;
+
+    /** 互斥锁前缀与参数 */
+    private static final String LOAD_LOCK_PREFIX = "cache:lock:";
+    private static final long LOAD_LOCK_EXPIRE_SECONDS = 5;
+    private static final int LOAD_RETRY_WAIT_MS = 50;
+    private static final int LOAD_MAX_RETRIES = 3;
 
     // ========== 读操作 ==========
 
@@ -45,6 +52,67 @@ public class CacheService {
      */
     public boolean isNullValue(String value) {
         return CacheConstants.NULL_VALUE.equals(value);
+    }
+
+    /**
+     * 带互斥锁的缓存读取（防止缓存击穿/热点key并发回源）。
+     * <p>
+     * 流程：get → miss → SETNX lock → 获取锁则回源 → set → del lock；
+     * 未获取锁则短暂等待后重试读缓存。
+     *
+     * @param key    缓存 key
+     * @param loader DB 回源函数，返回 null 表示空值
+     * @return 缓存值或回源结果，null 仅在 loader 返回 null 时出现
+     */
+    public String getOrLoad(String key, Supplier<String> loader) {
+        // 1. 先读缓存
+        String value = get(key);
+        if (value != null) {
+            return isNullValue(value) ? null : value;
+        }
+
+        // 2. 缓存 miss，尝试加互斥锁
+        String lockKey = LOAD_LOCK_PREFIX + key;
+        Boolean locked = redisTemplate.opsForValue()
+                .setIfAbsent(lockKey, "1", LOAD_LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
+
+        if (Boolean.TRUE.equals(locked)) {
+            // 3. 获得锁，回源加载
+            try {
+                // double-check：可能在竞争窗口内已被其他线程回填
+                value = get(key);
+                if (value != null) {
+                    return isNullValue(value) ? null : value;
+                }
+                String loaded = loader.get();
+                if (loaded == null) {
+                    setNull(key);
+                    return null;
+                }
+                set(key, loaded);
+                return loaded;
+            } finally {
+                redisTemplate.delete(lockKey);
+            }
+        }
+
+        // 4. 未获得锁，短暂等待后重试读缓存
+        for (int i = 0; i < LOAD_MAX_RETRIES; i++) {
+            try {
+                Thread.sleep(LOAD_RETRY_WAIT_MS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            value = get(key);
+            if (value != null) {
+                return isNullValue(value) ? null : value;
+            }
+        }
+
+        // 5. 重试后仍未命中，降级直接回源（不写缓存，避免踩踏）
+        log.warn("缓存互斥锁等待超时，降级直接回源 key={}", key);
+        return loader.get();
     }
 
     // ========== 写操作 ==========
@@ -137,3 +205,4 @@ public class CacheService {
         return CacheConstants.BASE_TTL_MINUTES + offset;
     }
 }
+

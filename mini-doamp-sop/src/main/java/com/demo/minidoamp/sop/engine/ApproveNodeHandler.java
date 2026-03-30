@@ -2,6 +2,7 @@ package com.demo.minidoamp.sop.engine;
 
 import com.demo.minidoamp.core.entity.SopNode;
 import com.demo.minidoamp.core.entity.SopTaskExec;
+import com.demo.minidoamp.core.enums.NodeType;
 import com.demo.minidoamp.core.enums.TaskExecStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -14,7 +15,7 @@ public class ApproveNodeHandler implements NodeHandler {
 
     @Override
     public String getNodeType() {
-        return "APPROVE";
+        return NodeType.APPROVE.getCode();
     }
 
     @Override

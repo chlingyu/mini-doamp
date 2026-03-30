@@ -12,6 +12,7 @@ import com.demo.minidoamp.api.vo.SopTaskVO;
 import com.demo.minidoamp.api.vo.TaskExecVO;
 import com.demo.minidoamp.core.entity.*;
 import com.demo.minidoamp.core.enums.TaskExecStatus;
+import com.demo.minidoamp.core.enums.NodeType;
 import com.demo.minidoamp.core.enums.TaskStatus;
 import com.demo.minidoamp.core.mapper.*;
 import com.demo.minidoamp.sop.engine.SopNotifier;
@@ -104,7 +105,7 @@ public class SopTaskService {
         SopNode startNode = nodeMapper.selectOne(
                 new LambdaQueryWrapper<SopNode>()
                         .eq(SopNode::getWorkflowId, wf.getId())
-                        .eq(SopNode::getNodeType, "START"));
+                        .eq(SopNode::getNodeType, NodeType.START.getCode()));
         if (startNode != null) {
             SopNode firstNode = findNextNode(wf.getId(), startNode.getId());
             if (firstNode != null) {
@@ -357,7 +358,7 @@ public class SopTaskService {
         if (exec.getAssigneeId() != null && !exec.getAssigneeId().equals(operatorId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
-        String requiredPermission = "APPROVE".equals(currentNode.getNodeType()) ? "sop.approve" : "sop.task";
+        String requiredPermission = NodeType.APPROVE.getCode().equals(currentNode.getNodeType()) ? "sop.approve" : "sop.task";
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         boolean allowed = authentication != null && authentication.getAuthorities().stream()
                 .anyMatch(authority -> requiredPermission.equals(authority.getAuthority()));

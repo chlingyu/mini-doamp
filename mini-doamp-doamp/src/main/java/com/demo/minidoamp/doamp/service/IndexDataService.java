@@ -23,35 +23,22 @@ public class IndexDataService {
     private final CacheService cacheService;
 
     /**
-     * 查询运行类指标最新值（带缓存）
-     * Cache Aside 读链路：cache -> db -> 回填
+     * 查询运行类指标最新值（带缓存 + 互斥回源防护）
+     * 读链路：getOrLoad → cache miss → SETNX lock → db → 回填
      */
     public BigDecimal getRunningValue(String indexCode, LocalDate date) {
         String key = CacheConstants.INDEX_KEY_PREFIX + indexCode + ":" + date.format(DATE_FMT);
 
-        // 1. 查缓存
-        String cached = cacheService.get(key);
-        if (cached != null) {
-            if (cacheService.isNullValue(cached)) {
-                return null;
-            }
-            return new BigDecimal(cached);
-        }
+        String cached = cacheService.getOrLoad(key, () -> {
+            // DB 回源
+            IndexRunning record = indexRunningMapper.selectOne(
+                    new LambdaQueryWrapper<IndexRunning>()
+                            .eq(IndexRunning::getIndexCode, indexCode)
+                            .eq(IndexRunning::getDataDate, date)
+                            .last("LIMIT 1"));
+            return record != null ? record.getIndexValue().toPlainString() : null;
+        });
 
-        // 2. 查 DB
-        IndexRunning record = indexRunningMapper.selectOne(
-                new LambdaQueryWrapper<IndexRunning>()
-                        .eq(IndexRunning::getIndexCode, indexCode)
-                        .eq(IndexRunning::getDataDate, date)
-                        .last("LIMIT 1"));
-
-        // 3. 回填缓存
-        if (record == null) {
-            cacheService.setNull(key);
-            return null;
-        }
-
-        cacheService.set(key, record.getIndexValue().toPlainString());
-        return record.getIndexValue();
+        return cached != null ? new BigDecimal(cached) : null;
     }
 }

@@ -1,5 +1,6 @@
 package com.demo.minidoamp.event.mq.producer;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.demo.minidoamp.core.entity.MsgRecord;
 import com.demo.minidoamp.core.entity.SysUser;
 import com.demo.minidoamp.core.entity.WarnRecord;
@@ -85,10 +86,14 @@ public class WarnMessageProducer {
             rabbitTemplate.convertAndSend(RabbitMqConfig.WARN_EXCHANGE, routingKey, record.getMsgId());
             log.info("MQ republished msgId={} to {}", record.getMsgId(), routingKey);
         } catch (Exception e) {
-            record.setStatus(MsgStatus.FAILED.getCode());
-            record.setFailReason("MQ重投失败: " + e.getMessage());
-            record.setUpdateTime(LocalDateTime.now());
-            msgRecordMapper.updateById(record);
+            // 仅更新 status/failReason/updateTime，不覆盖 retry_count 等字段
+            // 避免用旧快照 updateById 导致并发写回退
+            msgRecordMapper.update(null, new LambdaUpdateWrapper<MsgRecord>()
+                    .eq(MsgRecord::getId, record.getId())
+                    .eq(MsgRecord::getStatus, MsgStatus.RETRYING.getCode())
+                    .set(MsgRecord::getStatus, MsgStatus.FAILED.getCode())
+                    .set(MsgRecord::getFailReason, "MQ重投失败: " + e.getMessage())
+                    .set(MsgRecord::getUpdateTime, LocalDateTime.now()));
             log.error("MQ republish failed msgId={}", record.getMsgId(), e);
         }
     }

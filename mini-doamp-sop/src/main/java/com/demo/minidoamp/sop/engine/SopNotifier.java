@@ -38,7 +38,7 @@ public class SopNotifier {
 
         try {
             rabbitTemplate.convertAndSend(SOP_EXCHANGE, SOP_RK, record.getMsgId());
-            log.info("SOP通知已发送: taskId=, msgId={}, {}→{}", task.getId(), record.getMsgId(), fromStatus, toStatus);
+            log.info("SOP通知已发送: taskId={}, msgId={}, {}→{}", task.getId(), record.getMsgId(), fromStatus, toStatus);
         } catch (Exception e) {
             record.setStatus(MsgStatus.FAILED.getCode());
             record.setFailReason("MQ投递失败: " + e.getMessage());

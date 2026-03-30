@@ -195,3 +195,20 @@
 | **简历对齐** | 6 条代码实现项均与简历描述精确对应，Phase 6 MySQL 运行态已补验证 |
 | **安全性** | BCrypt 密码哈希 + 日志无密码泄露 + 6 层 SQL 校验 + JWT 双 token + Redis 竞态有缓解措施 |
 | **可演示性** | H2 + MySQL 双模式均可跑，手动触发→预警记录生成。MQ 消费链路需 MySQL 模式演示 |
+
+---
+
+## 六、L4 全栈运行态补充验证（2026-03-25 Antigravity）
+
+> 以下为 L4 阶段补充的运行态证据，与 `docs/gpt_review_prompt.md` V3 版对齐。
+
+| 验证项 | 结果 | 证据 |
+|--------|------|------|
+| Token Rotation | ✅ | 旧 refresh → 401 (Redis 黑名单) |
+| RabbitMQ 预警链路 | ✅ | 触发 → 20 条 SENT 消息 + 10 条预警记录 |
+| SOP 通知链路 | ✅ | SUBMIT → +1 msg(SENT,"SOP任务状态变更"), APPROVE → +1 msg |
+| Redis 缓存操作 | ✅ | dict/index/all refresh 全部 200 |
+| ShedLock 并行 | ✅ | 3 rules concurrent → [200,200,200] |
+| MySQL vs H2 | ✅ | DB Adapter=mysql, 8 个 API 同构 |
+| SOP 生命周期 | ✅ | EXECUTING → APPROVING → COMPLETED, 5 条操作流水 |
+

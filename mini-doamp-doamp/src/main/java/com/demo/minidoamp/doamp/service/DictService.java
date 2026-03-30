@@ -41,46 +41,32 @@ public class DictService {
     // ========== 查询（Cache Aside 读链路） ==========
 
     /**
-     * 根据字典编码获取字典项列表（带缓存）
-     * 读链路：cache -> db -> 回填
+     * 根据字典编码获取字典项列表（带缓存 + 互斥回源防护）
+     * 读链路：getOrLoad → cache miss → SETNX lock → db → 回填
      */
     public List<DictItemVO> getItemsByCode(String dictCode) {
         String key = CacheConstants.DICT_KEY_PREFIX + dictCode;
 
-        // 1. 查缓存
-        String cached = cacheService.get(key);
-        if (cached != null) {
-            if (cacheService.isNullValue(cached)) {
-                return Collections.emptyList();
+        String cached = cacheService.getOrLoad(key, () -> {
+            // DB 回源
+            SysDict dict = dictMapper.selectOne(
+                    new LambdaQueryWrapper<SysDict>().eq(SysDict::getDictCode, dictCode));
+            if (dict == null) {
+                return null; // getOrLoad 会自动写入空值缓存
             }
-            return JSON.parseArray(cached, DictItemVO.class);
-        }
+            List<SysDictItem> items = dictItemMapper.selectList(
+                    new LambdaQueryWrapper<SysDictItem>()
+                            .eq(SysDictItem::getDictId, dict.getId())
+                            .eq(SysDictItem::getStatus, 1)
+                            .orderByAsc(SysDictItem::getSortOrder));
+            List<DictItemVO> voList = items.stream().map(this::toItemVO).collect(Collectors.toList());
+            return voList.isEmpty() ? null : JSON.toJSONString(voList);
+        });
 
-        // 2. 查 DB
-        SysDict dict = dictMapper.selectOne(
-                new LambdaQueryWrapper<SysDict>().eq(SysDict::getDictCode, dictCode));
-        if (dict == null) {
-            // 防穿透：缓存空值
-            cacheService.setNull(key);
+        if (cached == null) {
             return Collections.emptyList();
         }
-
-        List<SysDictItem> items = dictItemMapper.selectList(
-                new LambdaQueryWrapper<SysDictItem>()
-                        .eq(SysDictItem::getDictId, dict.getId())
-                        .eq(SysDictItem::getStatus, 1)
-                        .orderByAsc(SysDictItem::getSortOrder));
-
-        List<DictItemVO> voList = items.stream().map(this::toItemVO).collect(Collectors.toList());
-
-        // 3. 回填缓存（随机 TTL 防雪崩）
-        if (voList.isEmpty()) {
-            cacheService.setNull(key);
-        } else {
-            cacheService.set(key, JSON.toJSONString(voList));
-        }
-
-        return voList;
+        return JSON.parseArray(cached, DictItemVO.class);
     }
 
     // ========== 分页查询 ==========

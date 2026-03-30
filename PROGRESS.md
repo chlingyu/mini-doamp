@@ -38,6 +38,67 @@
   - 更新 `CHEATSHEET.md`：jar 启动需手动加 `-Dfile.encoding=UTF-8`
 - 浏览器全功能测试：55 用例外的全页面手动巡检，除中文乱码外未发现其他 bug
 
+## 审查记录（2026-03-30）
+
+- 已确认启用“每个 Phase 审查后同步更新 PROGRESS.md”的机制（本节作为审查日志入口）
+- Phase 1（预警引擎）Codex 审查结论：
+  - ✅ 符合：策略模式 + 7种指标策略 + WarnEngine 路由 + 指标主表/阈值子表解耦 + 自定义SQL双校验
+  - ⚠️ 改进点1：新增指标类型仍依赖 `IndexType` 枚举与校验链路变更，扩展并非仅新增策略类
+  - ⚠️ 改进点2：自定义SQL执行建议补充超时/最大返回行数等资源保护（当前注入防护已达标）
+  - ❌ 严重不符：无
+- Phase 2（消息推送）Codex 审查结论：
+  - ✅ 符合：Topic Exchange + 3消费队列（sms/email/wxwork）+ DLX/DLQ + Redis SETNX 幂等 + Mock发送
+  - ✅ 符合：自动补偿重试上限 `MAX_RETRY=3`，超限转 `ALARM`
+  - ⚠️ 改进点1：手动重试接口当前允许 `ALARM` 状态继续重试并递增 `retryCount`，建议与“最多3次”口径统一
+  - ⚠️ 改进点2：消息表为“当前状态模型”（单行覆盖更新），若面试强调“完整状态流转留痕”，建议补充状态变更历史表
+  - ❌ 严重不符：无
+- Phase 3（Redis缓存）Codex 审查结论：
+  - ✅ 符合：Cache Aside 读链路（缓存→DB→回填）与写链路（更新DB后删缓存）已实现
+  - ✅ 符合：延迟双删（事务提交后删缓存 + 延迟500ms再删）、随机TTL防雪崩、空值短TTL防穿透、手动刷新接口、key前缀规范
+  - ⚠️ 改进点1：存在缓存击穿并发窗口（热点key失效瞬间无互斥回源），建议加单飞/互斥锁或本地短暂合并
+  - ⚠️ 改进点2：缓存相关集成测试偏轻（当前主要是Bean/常量级），建议补充真实读写链路与延迟双删时序测试
+  - ❌ 严重不符：无
+- Phase 4（定时调度）Codex 审查结论：
+  - ✅ 符合：已集成 XXL-Job（`warnCheckHandler` / `sopTaskGenerateHandler` / `msgCompensationHandler`），未使用 `@Scheduled`
+  - ✅ 符合：ShedLock 锁名动态生成（`warn_check_{ruleId}` / `sop_generate_{templateId}`），锁表已建
+  - ✅ 符合：调度任务包含“预警检查 + SOP任务生成”
+  - ⚠️ 改进点1：同一执行周期内当前为单线程串行遍历模板/规则，动态锁解决“误抢锁”但不等于单实例内并行执行；如面试强调并行吞吐建议补充并发执行策略
+  - ⚠️ 改进点2：H2 测试主要验证接口可用性，未完整覆盖真实 XXL 调度触发路径（该点已有文档化说明）
+  - ❌ 严重不符：无
+- Phase 5（SOP工作流）Codex 审查结论：
+  - ✅ 符合：状态机模式（`TaskStatus` 枚举 + 转换矩阵）与 `WorkflowEngine.advance()` 主链路完整
+  - ✅ 符合：节点处理策略模式（PROCESS/APPROVE/COPY/BRANCH）已实现，回退支持任意已完成节点，`TaskExec` 中间记录标记 `ROLLED_BACK` 且不物理删除
+  - ✅ 符合：操作流水表按状态变更写入（操作人、时间、动作、备注），并在状态变更后触发 MQ 通知（复用 `warn.exchange`）
+  - ✅ 符合：前端流程设计器/查看器基于 AntV X6，查看器为只读模式并高亮当前节点
+  - ⚠️ 改进点1：`SopNotifier` 成功日志模板占位符与参数数量不匹配，日志中的 taskId/msgId 可能错位显示
+  - ⚠️ 改进点2：节点类型流转目前主要使用字符串常量而非 `NodeType` 枚举，建议收敛为强类型以降低拼写风险
+  - ❌ 严重不符：无
+- Phase 6（多库适配）Codex 审查结论：
+  - ✅ 符合：`databaseIdProvider` 自动识别数据库类型（MySQL/H2）
+  - ✅ 符合：`DatabaseAdapter` 抽象 + 工厂模式路由实现完整
+  - ✅ 符合：至少3类方言差异示例已落地（日期函数、分页语法、字符串聚合），并有 databaseId 差异化 SQL
+  - ✅ 符合：H2 运行态与适配器行为有集成测试覆盖（`DatabaseAdapterTest`）
+  - ⚠️ 改进点1：MySQL 运行态目前主要依赖文档化与手工联调记录，建议补一条可自动执行的 MySQL profile 冒烟集成测试
+  - ❌ 严重不符：无
+- Phase 7（前端）Codex 审查结论：
+  - ✅ 符合：组件命名整体为 PascalCase（页面与流程组件）
+  - ✅ 符合：API 文件按模块组织（auth/user/system/warn/sop）
+  - ✅ 符合：Vuex 管理全局登录态与权限（token/profile/permissions）
+  - ✅ 符合：Axios 统一请求/响应拦截（JWT 注入、401刷新、403处理）
+  - ✅ 符合：流程设计器/查看器均基于 AntV X6，查看器只读并高亮当前节点
+  - ⚠️ 改进点1：建议补充前端自动化用例覆盖 token 过期刷新与 403 跳转路径，降低回归风险
+  - ❌ 严重不符：无
+- 整改复审彻底完成（2026-03-30，历经 5 轮深层 Review，针对 4个P1+1个P2 彻底攻克）：
+  - ✅ **SopNotifier 日志修复**：占位符修复完全生效。
+  - ✅ **NodeType 枚举收敛**：SOP 主链路硬编码全部替换生效。
+  - ✅ **自定义SQL资源防护**：改用 `StatementCallback` 实现线程隔离级属性，防止并发串扰。
+  - ✅ **热点缓存防并发击穿**：`DictService` / `IndexDataService` 的真实读链路已全面接入 `CacheService.getOrLoad()` 单飞锁。
+  - ✅ **手动重试终极并发安全**：
+    1. 去除包裹的 `@Transactional`，解决异常回滚阻断 ALARM 落库的核心逻辑。
+    2. 从 `updateById()` 改成 `UpdateWrapper (CAS)` 精准条件更新，阻断并发下重复发起重试。
+    3. 异常回写精准化，仅更新失败相关字段（不再回写过期的 `retry_count` 数据视图），辅以原状态为 `RETRYING` 的加固条件。
+- 后续规则：Phase 2~7 审查结果继续在本节按日期追加，统一使用“✅⚠️❌ + 代码位置 + 修改建议”格式
+
 ## 最近更新（2026-03-07）
 
 - Phase 6 已从“只有 DemoDialectMapper 演示”补强为“真实业务接口接入多库适配”

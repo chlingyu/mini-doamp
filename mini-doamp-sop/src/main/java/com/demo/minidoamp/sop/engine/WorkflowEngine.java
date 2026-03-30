@@ -8,6 +8,7 @@ import com.demo.minidoamp.core.entity.SopNode;
 import com.demo.minidoamp.core.entity.SopTask;
 import com.demo.minidoamp.core.entity.SopTaskExec;
 import com.demo.minidoamp.core.enums.ActionType;
+import com.demo.minidoamp.core.enums.NodeType;
 import com.demo.minidoamp.core.enums.TaskExecStatus;
 import com.demo.minidoamp.core.enums.TaskStatus;
 import com.demo.minidoamp.core.mapper.SopNodeMapper;
@@ -129,20 +130,20 @@ public class WorkflowEngine {
     /** 推进到下一节点，分支节点按 conditionExpr 路由 */
     private void advanceToNext(SopTask task, SopNode currentNode, String result) {
         SopNode nextNode;
-        if ("BRANCH".equals(currentNode.getNodeType())) {
+        if (NodeType.BRANCH.getCode().equals(currentNode.getNodeType())) {
             nextNode = taskService.findNextNodeByCondition(
                     task.getWorkflowId(), currentNode.getId(), result);
         } else {
             nextNode = taskService.findNextNode(task.getWorkflowId(), currentNode.getId());
         }
-        if (nextNode == null || "END".equals(nextNode.getNodeType())) {
+        if (nextNode == null || NodeType.END.getCode().equals(nextNode.getNodeType())) {
             task.setStatus(TaskStatus.COMPLETED.getCode());
             task.setCompleteTime(LocalDateTime.now());
             taskMapper.updateById(task);
             return;
         }
         taskService.createExecRecord(task.getId(), nextNode);
-        String newStatus = "APPROVE".equals(nextNode.getNodeType())
+        String newStatus = NodeType.APPROVE.getCode().equals(nextNode.getNodeType())
                 ? TaskStatus.APPROVING.getCode() : TaskStatus.EXECUTING.getCode();
         task.setStatus(newStatus);
         taskMapper.updateById(task);
@@ -151,16 +152,16 @@ public class WorkflowEngine {
     /** 预判推进后的任务状态（用于 canTransitTo 校验，分支节点按条件路由） */
     private TaskStatus determineNextTaskStatus(SopTask task, SopNode currentNode, String result) {
         SopNode nextNode;
-        if ("BRANCH".equals(currentNode.getNodeType())) {
+        if (NodeType.BRANCH.getCode().equals(currentNode.getNodeType())) {
             nextNode = taskService.findNextNodeByCondition(
                     task.getWorkflowId(), currentNode.getId(), result);
         } else {
             nextNode = taskService.findNextNode(task.getWorkflowId(), currentNode.getId());
         }
-        if (nextNode == null || "END".equals(nextNode.getNodeType())) {
+        if (nextNode == null || NodeType.END.getCode().equals(nextNode.getNodeType())) {
             return TaskStatus.COMPLETED;
         }
-        return "APPROVE".equals(nextNode.getNodeType())
+        return NodeType.APPROVE.getCode().equals(nextNode.getNodeType())
                 ? TaskStatus.APPROVING : TaskStatus.EXECUTING;
     }
 
@@ -180,8 +181,8 @@ public class WorkflowEngine {
         currentExec = taskExecMapper.selectById(taskExecId);
 
         SopNode targetNode = nodeMapper.selectById(targetNodeId);
-        if (targetNode == null || "START".equals(targetNode.getNodeType())
-                || "END".equals(targetNode.getNodeType())) {
+        if (targetNode == null || NodeType.START.getCode().equals(targetNode.getNodeType())
+                || NodeType.END.getCode().equals(targetNode.getNodeType())) {
             throw new BusinessException(ErrorCode.ROLLBACK_NOT_ALLOWED);
         }
 
@@ -249,7 +250,7 @@ public class WorkflowEngine {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
         validateAction(currentNode, action);
-        String requiredPermission = "APPROVE".equals(currentNode.getNodeType()) ? "sop.approve" : "sop.task";
+        String requiredPermission = NodeType.APPROVE.getCode().equals(currentNode.getNodeType()) ? "sop.approve" : "sop.task";
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         boolean allowed = authentication != null && authentication.getAuthorities().stream()
                 .anyMatch(authority -> requiredPermission.equals(authority.getAuthority()));
@@ -262,10 +263,10 @@ public class WorkflowEngine {
         if (ActionType.ROLLBACK.getCode().equals(action)) {
             return;
         }
-        if (ActionType.REJECT.getCode().equals(action) && !"APPROVE".equals(currentNode.getNodeType())) {
+        if (ActionType.REJECT.getCode().equals(action) && !NodeType.APPROVE.getCode().equals(currentNode.getNodeType())) {
             throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION);
         }
-        if ("APPROVE".equals(currentNode.getNodeType())) {
+        if (NodeType.APPROVE.getCode().equals(currentNode.getNodeType())) {
             if (!ActionType.APPROVE.getCode().equals(action) && !ActionType.REJECT.getCode().equals(action)) {
                 throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION);
             }
