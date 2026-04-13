@@ -32,8 +32,8 @@ public class ChannelWarnStrategy extends AbstractWarnStrategy {
     }
 
     @Override
-    public IndexType getType() {
-        return IndexType.CHANNEL;
+    public String getType() {
+        return IndexType.CHANNEL.getCode();
     }
 
     @Override

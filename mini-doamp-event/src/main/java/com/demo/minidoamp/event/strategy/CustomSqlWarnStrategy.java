@@ -30,8 +30,8 @@ public class CustomSqlWarnStrategy extends AbstractWarnStrategy {
     private final JdbcTemplate jdbcTemplate;
 
     @Override
-    public IndexType getType() {
-        return IndexType.CUSTOM_SQL;
+    public String getType() {
+        return IndexType.CUSTOM_SQL.getCode();
     }
 
     @Override

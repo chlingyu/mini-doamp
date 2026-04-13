@@ -32,8 +32,8 @@ public class BranchWarnStrategy extends AbstractWarnStrategy {
     }
 
     @Override
-    public IndexType getType() {
-        return IndexType.BRANCH;
+    public String getType() {
+        return IndexType.BRANCH.getCode();
     }
 
     @Override

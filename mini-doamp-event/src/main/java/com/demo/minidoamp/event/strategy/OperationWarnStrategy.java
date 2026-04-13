@@ -20,8 +20,8 @@ public class OperationWarnStrategy extends AbstractWarnStrategy {
     private final IndexOperationMapper indexOperationMapper;
 
     @Override
-    public IndexType getType() {
-        return IndexType.OPERATION;
+    public String getType() {
+        return IndexType.OPERATION.getCode();
     }
 
     @Override

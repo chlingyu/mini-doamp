@@ -36,8 +36,8 @@ public class EmployeeWarnStrategy extends AbstractWarnStrategy {
     }
 
     @Override
-    public IndexType getType() {
-        return IndexType.EMPLOYEE;
+    public String getType() {
+        return IndexType.EMPLOYEE.getCode();
     }
 
     @Override

@@ -7,7 +7,6 @@ import com.demo.minidoamp.core.entity.WarnIndex;
 import com.demo.minidoamp.core.entity.WarnRecord;
 import com.demo.minidoamp.core.entity.WarnRule;
 import com.demo.minidoamp.core.entity.WarnThreshold;
-import com.demo.minidoamp.core.enums.IndexType;
 import com.demo.minidoamp.core.mapper.WarnIndexMapper;
 import com.demo.minidoamp.core.mapper.WarnRecordMapper;
 import com.demo.minidoamp.core.mapper.WarnRuleMapper;
@@ -36,7 +35,7 @@ public class WarnEngine {
     private final WarnRecordMapper recordMapper;
     private final WarnMessageProducer messageProducer;
 
-    private Map<IndexType, WarnStrategy> strategyMap;
+    private Map<String, WarnStrategy> strategyMap;
 
     @PostConstruct
     public void init() {
@@ -60,8 +59,7 @@ public class WarnEngine {
                 new LambdaQueryWrapper<WarnThreshold>()
                         .eq(WarnThreshold::getIndexId, index.getId()));
 
-        IndexType type = IndexType.valueOf(index.getIndexType());
-        WarnStrategy strategy = strategyMap.get(type);
+        WarnStrategy strategy = strategyMap.get(index.getIndexType());
         if (strategy == null) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR);
         }
@@ -77,7 +75,7 @@ public class WarnEngine {
             records.forEach(r -> messageProducer.publish(r, rule));
         }
 
-        log.info("WarnEngine.check ruleId={} indexType={} triggered={}", ruleId, type, records.size());
+        log.info("WarnEngine.check ruleId={} indexType={} triggered={}", ruleId, index.getIndexType(), records.size());
         return records;
     }
 }

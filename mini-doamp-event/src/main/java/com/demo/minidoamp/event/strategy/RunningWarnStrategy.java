@@ -31,8 +31,8 @@ public class RunningWarnStrategy extends AbstractWarnStrategy {
     private final IndexRunningMapper indexRunningMapper;
 
     @Override
-    public IndexType getType() {
-        return IndexType.RUNNING;
+    public String getType() {
+        return IndexType.RUNNING.getCode();
     }
 
     @Override

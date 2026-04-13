@@ -32,8 +32,8 @@ public class BankWarnStrategy extends AbstractWarnStrategy {
     }
 
     @Override
-    public IndexType getType() {
-        return IndexType.BANK;
+    public String getType() {
+        return IndexType.BANK.getCode();
     }
 
     @Override

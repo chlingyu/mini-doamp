@@ -140,17 +140,12 @@ public class WarnIndexService {
 
     private void validateRequest(WarnIndexRequest req) {
         // 校验 indexType 是合法枚举值
-        if (!StringUtils.hasText(req.getIndexType())) {
-            throw new BusinessException(ErrorCode.INVALID_INDEX_TYPE);
-        }
-        try {
-            IndexType.valueOf(req.getIndexType());
-        } catch (IllegalArgumentException e) {
+        if (!StringUtils.hasText(req.getIndexType()) || !IndexType.isValid(req.getIndexType())) {
             throw new BusinessException(ErrorCode.INVALID_INDEX_TYPE);
         }
 
         // CUSTOM_SQL 类型必须有 SQL 内容
-        if (IndexType.CUSTOM_SQL.name().equals(req.getIndexType())) {
+        if (IndexType.CUSTOM_SQL.getCode().equals(req.getIndexType())) {
             if (!StringUtils.hasText(req.getCustomSql())) {
                 throw new BusinessException(ErrorCode.CUSTOM_SQL_INVALID);
             }

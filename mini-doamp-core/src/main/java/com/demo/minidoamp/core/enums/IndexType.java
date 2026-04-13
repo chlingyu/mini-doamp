@@ -17,4 +17,11 @@ public enum IndexType {
 
     private final String code;
     private final String desc;
+
+    public static boolean isValid(String code) {
+        for (IndexType t : values()) {
+            if (t.code.equals(code)) return true;
+        }
+        return false;
+    }
 }
