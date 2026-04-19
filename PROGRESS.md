@@ -210,7 +210,7 @@ Claude 写代码 → compileJava → 标记"待审查" → Codex 审查（可能
 
 面试级 → 生产级路线确认：K8s 自建 + 真微服务 + 前端全量 TS。Roadmap P-1→P7 共 9 阶段，预计 12-14 周。
 
-### P-1：Java / Spring Boot 升级（worktree `upgrade-boot3`，🔄 进行中）
+### P-1：Java / Spring Boot 升级（✅ 完成，2026-04-19 合入 master，PR #1）
 
 **目标**：Java 1.8 → 21、Spring Boot 2.7 → 3.4、删 H2、javax → jakarta。
 
@@ -219,22 +219,52 @@ Claude 写代码 → compileJava → 标记"待审查" → Codex 审查（可能
 | 1 | Gradle 7.6 → 8.10.2 + Foojay Toolchain + Daemon JVM 切 JDK 17 | ✅ |
 | 2 | Spring Boot 3.4.1 + Spring Cloud 2024.0.0 + MyBatis Plus 3.5.9 + jsqlparser + jjwt 0.12.6 + ShedLock 5.16 + MySQL Connector-J 8.4 + Testcontainers 1.20 | ✅ |
 | 3 | javax → jakarta 全量替换（31 文件 53 import，validation/servlet/annotation.PostConstruct；保留 javax.sql / javax.crypto 属 JDK 内置） | ✅ |
-| 4 | JwtUtil 改 jjwt 0.12 API（`Jwts.parser().verifyWith().parseSignedClaims().getPayload()`）+ SecurityConfig 改 Spring Security 6（SecurityFilterChain lambda DSL + requestMatchers + authorizeHttpRequests） | ✅ |
+| 4 | JwtUtil 改 jjwt 0.12 API + SecurityConfig 改 Spring Security 6（SecurityFilterChain lambda DSL + requestMatchers + authorizeHttpRequests） | ✅ |
 | 5 | compileJava + compileTestJava 全模块 BUILD SUCCESSFUL | ✅ |
-| 6 | 彻底删除 H2：H2Adapter.java / application-h2.yml / schema-h2.sql / DatabaseAdapterTest.java / Mapper XML databaseId="h2" 分支 / MybatisPlusConfig H2 检测；测试基建改 Testcontainers MySQL 共享单例；README/CHEATSHEET 改为 Docker Compose 全栈 | ✅ |
-| 7 | `bootRun` 冒烟 + docker-compose MySQL/Redis/RabbitMQ 全链路 | ⏸ 待 Docker Desktop 启动 |
-| 8 | `./gradlew test` 集成测试（依赖 Testcontainers MySQL） | ⏸ 待 Docker Desktop 启动 |
-| 9 | 分层 commit + /review + /security-review + PR | ⏸ |
-| 10 | 切 JDK 17 → JDK 21 LTS（Foojay 下载或手动安装） | ⏸ |
+| 6 | 彻底删除 H2：H2Adapter.java / application-h2.yml / schema-h2.sql / DatabaseAdapterTest.java / Mapper XML databaseId="h2" 分支 / MybatisPlusConfig H2 检测；测试基建改 Testcontainers MySQL 共享单例 | ✅ |
+| 7 | `bootRun` 冒烟 + docker-compose MySQL/Redis/RabbitMQ 全链路（9/9 端点 HTTP 200） | ✅ |
+| 8 | `./gradlew test` 集成测试 48/48 green（server 16 + event 32，Testcontainers MySQL 8.0） | ✅ |
+| 9 | 4-layer commit + /review APPROVE + /security-review zero findings + PR #1 merged | ✅ |
+| 10 | 切 JDK 17 → JDK 21 LTS（Temurin 21.0.10+7 清华镜像手动下载，Foojay 在 GFW 下 connection-reset） | ✅ |
 
-**净改动**：54 files changed, +194 insertions, -710 deletions（H2 schema-h2.sql 贡献 -313 行）。
-
-**阻塞**：Step 7/8 需要 Docker Desktop 运行（MySQL 8 / Redis / RabbitMQ）。启动后继续。
+**净改动**：55 files changed, +238 insertions, -714 deletions。
 
 **关键设计决策（P-1）**：
-- Daemon JVM 先用本地 JDK 17（`D:/jdk/jdk-17.0.8`），toolchain language version 也临时用 17，保留 Step 10 切 21
+- Daemon JVM 用本地 JDK 17（`D:/jdk/jdk-17.0.8`，SB 3.4 Gradle plugin 最低要求），toolchain 编译目标用 JDK 21 LTS
+- Foojay auto-download 在国内网络 connection-reset；改 `org.gradle.java.installations.paths` 显式列本地 JDK 目录 + `auto-download=false`
 - MyBatis Plus 3.5.9 起 `PaginationInnerInterceptor` 依赖 jsqlparser，独立 artifact `mybatis-plus-jsqlparser` 需显式引入
 - MySQL Connector artifact 从 `mysql:mysql-connector-java` → `com.mysql:mysql-connector-j`
 - H2 作为多库适配的"演示方"彻底移除；`DatabaseAdapter` 接口 + Factory 保留（未来加 PostgreSQL/Oracle 可直接扩）
-- 测试基建：`BaseIntegrationTest` 静态 Testcontainers MySQL（withReuse=true），所有继承类共享同一个容器实例降低启动代价
+- 测试基建：`BaseIntegrationTest` 静态 Testcontainers MySQL 8.0（withReuse=true），所有继承类共享同一个容器实例降低启动代价
+- Spring Framework 6 要求保留方法参数名（按名 bean 注入 / `@ConfigurationProperties` 绑定），全模块添加 `javac -parameters` 标志
+
+### P0：可观测性与部署底座（worktree `upgrade-p0-observability`，🔄 冒烟通过，待 review/PR）
+
+**目标**：结构化日志 + MDC/TraceId、Prometheus/Grafana、Flyway、SpringDoc、Docker 多阶段、GitHub Actions、Helm 骨架。
+
+| 子阶段 | 内容 | 状态 |
+|---|---|---|
+| P0-a | 结构化日志：log4j2 console + JsonTemplateLayout(Logstash V1) + `MdcRequestFilter`(requestId/clientIp) + `JwtAuthFilter` 注入 userId + Micrometer Tracing (OTel bridge) 自动注入 traceId/spanId | ✅ |
+| P0-b | Actuator + Micrometer + Prometheus Registry + 业务埋点(`warn.check.duration` / `warn.triggered.total` / `notify.publish.total` / `sop.task.advance.total/.duration`) + Grafana Dashboard JSON + Prometheus scrape config + compose stack(prometheus:9090, grafana:3000) | ✅ |
+| P0-c | Flyway 迁移：`V1__init_schema.sql`(313 行) + `V2__init_data.sql`(幂等 `INSERT IGNORE` 含显式 id) + `baseline-on-migrate=true` + `BaseIntegrationTest` 去掉 `spring.sql.init`，测试改由 Flyway 驱动 + 旧 `src/main/resources/sql/` 彻底删除 | ✅ |
+| P0-d | SpringDoc OpenAPI 3 (`springdoc-openapi-starter-webmvc-ui:2.6.0`) + `OpenApiConfig` 全局 Info/Contact/License + `bearer-jwt` Security Scheme + `SecurityConfig` 放行 `/v3/api-docs/**` + `/swagger-ui/**` + `/actuator/{health,info,prometheus}` | ✅ |
+| P0-e | 多阶段 `Dockerfile`(JDK 21 builder + JRE 21 jammy runtime) + Gradle 依赖 layer 缓存 + Spring Boot Layered Jar(`java -Djarmode=layertools extract`) + 非 root(uid 1000) + HEALTHCHECK 走 `/actuator/health` + `.dockerignore` + docker-compose `--profile full` 里的 `app` 服务 | ✅ |
+| P0-f | `.github/workflows/ci.yml`(JDK 21 + gradle test + Docker Buildx + ghcr.io push, cache-from/to type=gha) + `deploy/helm/mini-doamp`(Chart/values/_helpers/deployment/service/sa/configmap/hpa/ingress/servicemonitor + README) | ✅ |
+| 冒烟 | `./gradlew test` 全绿（48 测试，Flyway 驱动 Testcontainers MySQL）+ `bootRun` 启动 5s + `/actuator/health=UP` + `/actuator/prometheus` 输出 Micrometer 指标 + `/v3/api-docs` 返回 OpenAPI 3.0.1 JSON + 日志里 `[traceId=... spanId=...] [req=... user=1 ip=...]` 全字段齐活 | ✅ |
+
+**关键设计决策（P0）**：
+- **日志框架**：保留 Log4j2（而非回 Logback），借 `log4j-layout-template-json` 拿到 Logstash V1 schema；`%X{k}` 读 Slf4j MDC（由 `log4j-slf4j2-impl` 自动桥接到 ThreadContext）。Log4j2 不支持 Logback 的 `%X{k:-default}` 语法，改为 `%X{k}`（缺失时渲染为空串）。
+- **MDC 注入次序**：`MdcRequestFilter` 设 `Ordered.HIGHEST_PRECEDENCE` + `FilterRegistrationBean` 显式注册，保证在 SecurityFilterChain 之前跑；`JwtAuthFilter` 解出 userId 后**立刻** put MDC，避免 `PermissionService` 内部的 SQL 日志 `user=` 为空。
+- **Tracing**：选 `micrometer-tracing-bridge-otel`（不是 brave），对齐 P2 Jaeger/Tempo；`probability=1.0` 本地全采样，生产用 `TRACING_SAMPLING` 环境变量覆盖到 0.1。
+- **业务埋点命名**：`<domain>.<event>.{total,duration}` + 低基数 tag（`indexType` / `channel` / `action` / `nodeType` / `outcome`）；`ruleId` / `userId` 不上标签避免 cardinality 爆炸。
+- **Flyway 幂等**：V2 所有 `INSERT` 全改 `INSERT IGNORE` + 显式 id，保证老库 baseline 首迁移 + 新库空库都能跑过。
+- **Actuator 放行**：`/actuator/{health,info,prometheus}` 走 `permitAll()`；P2 会改成独立 management port + IP 白名单。
+- **Dockerfile 分层**：先 COPY 各模块 `build.gradle` 预热依赖缓存，再 COPY 源码；Spring Boot Layered Jar 让依赖层（大部分不变）缓存命中率最大化；运行时用 `eclipse-temurin:21-jre-jammy` 瘦身。
+- **Helm Chart 骨架**：非 root、滚动更新 `maxSurge=1/maxUnavailable=0`、liveness/readiness 拆到 `/actuator/health/{liveness,readiness}`、HPA 基于 CPU+Memory、可选 `ServiceMonitor`(Prometheus Operator)；Secret 接口统一为 `secretRef.name`（P1 由 External Secrets + Vault 供给）。
+- **CI 触发**：PR 只跑 test，master 推送才 build+push 镜像到 `ghcr.io/${owner}/mini-doamp`；Buildx 缓存走 `type=gha`。
+
+**遗留 / 下一步**：
+- SpringDoc Controller 级 `@Tag` / `@Operation` 注解精细化 → P7（运维文档阶段）。
+- Actuator `/actuator/prometheus` 生产级 IP 白名单 + management port 独立化 → P2。
+- XXL-Job admin 在本地 dev 没启动会刷 `Connection refused` 错误日志，不影响 bootRun 冒烟；后续考虑 dev profile 里 `xxl.job.admin.addresses=""` 屏蔽。
 
