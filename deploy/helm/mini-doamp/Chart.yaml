@@ -1,0 +1,16 @@
+apiVersion: v2
+name: mini-doamp
+description: Digital Operations Monitoring & Management Platform (monolith baseline).
+type: application
+version: 0.1.0
+appVersion: "1.0.0-SNAPSHOT"
+home: https://github.com/chlingyu/mini-doamp
+keywords:
+  - spring-boot
+  - java21
+  - monitoring
+  - alerting
+  - workflow
+maintainers:
+  - name: Mini DOAMP
+    url: https://github.com/chlingyu/mini-doamp

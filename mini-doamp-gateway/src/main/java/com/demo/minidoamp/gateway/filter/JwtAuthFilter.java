@@ -1,10 +1,12 @@
 package com.demo.minidoamp.gateway.filter;
 
+import com.demo.minidoamp.core.filter.MdcRequestFilter;
 import com.demo.minidoamp.gateway.config.JwtUtil;
 import com.demo.minidoamp.gateway.service.PermissionService;
 import com.demo.minidoamp.gateway.service.TokenBlacklistService;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.MDC;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -40,6 +42,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     && !tokenBlacklistService.isBlacklisted(token)) {
                 Claims claims = jwtUtil.parseToken(token);
                 Long userId = claims.get("userId", Long.class);
+                // 把 userId 写进 MDC 的时机尽量往前靠：PermissionService 内部也会查表写日志，
+                // 若等 authentication 设好再写 MDC，那几行 SQL 日志里 user 字段会是空的。
+                if (userId != null) {
+                    MDC.put(MdcRequestFilter.MDC_USER_ID, String.valueOf(userId));
+                }
                 List<SimpleGrantedAuthority> authorities = permissionService.resolvePermissionsByUserId(userId)
                         .stream()
                         .map(SimpleGrantedAuthority::new)

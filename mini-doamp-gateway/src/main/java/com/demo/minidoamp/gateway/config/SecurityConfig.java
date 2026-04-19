@@ -32,6 +32,12 @@ public class SecurityConfig {
                 .accessDeniedHandler(restAccessDeniedHandler))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
+                // P0-b: Actuator probes + Prometheus scrape（生产阶段建议改为 IP 白名单或独立 mgmt port）
+                .requestMatchers("/actuator/health", "/actuator/health/**",
+                                 "/actuator/info", "/actuator/prometheus").permitAll()
+                // P0-d: SpringDoc OpenAPI + Swagger UI
+                .requestMatchers("/v3/api-docs", "/v3/api-docs/**",
+                                 "/swagger-ui", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/auth/userInfo").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                 .requestMatchers("/api/users", "/api/users/**", "/api/roles", "/api/roles/**", "/api/depts", "/api/depts/**").hasAuthority("system.user")

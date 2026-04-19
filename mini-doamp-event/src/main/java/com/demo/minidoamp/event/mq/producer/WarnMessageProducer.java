@@ -9,6 +9,7 @@ import com.demo.minidoamp.core.enums.MsgStatus;
 import com.demo.minidoamp.core.mapper.MsgRecordMapper;
 import com.demo.minidoamp.core.mapper.SysUserMapper;
 import com.demo.minidoamp.event.config.RabbitMqConfig;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -26,6 +27,7 @@ public class WarnMessageProducer {
     private final RabbitTemplate rabbitTemplate;
     private final MsgRecordMapper msgRecordMapper;
     private final SysUserMapper userMapper;
+    private final MeterRegistry meterRegistry;
 
     public void publish(WarnRecord warnRecord, WarnRule rule) {
         if (!StringUtils.hasText(rule.getNotifyType()) || !StringUtils.hasText(rule.getReceiverIds())) {
@@ -65,6 +67,8 @@ public class WarnMessageProducer {
                 // 2. 投递到 MQ
                 try {
                     rabbitTemplate.convertAndSend(RabbitMqConfig.WARN_EXCHANGE, routingKey, record.getMsgId());
+                    meterRegistry.counter("notify.publish.total",
+                            "channel", notifyType, "outcome", "ok").increment();
                     log.info("MQ published msgId={} to {}", record.getMsgId(), routingKey);
                 } catch (Exception e) {
                     // 投递失败，更新为 FAILED
@@ -72,6 +76,8 @@ public class WarnMessageProducer {
                     record.setFailReason("MQ投递失败: " + e.getMessage());
                     record.setUpdateTime(LocalDateTime.now());
                     msgRecordMapper.updateById(record);
+                    meterRegistry.counter("notify.publish.total",
+                            "channel", notifyType, "outcome", "failed").increment();
                     log.error("MQ publish failed msgId={}", record.getMsgId(), e);
                 }
             }
@@ -84,6 +90,8 @@ public class WarnMessageProducer {
         if (routingKey == null) return;
         try {
             rabbitTemplate.convertAndSend(RabbitMqConfig.WARN_EXCHANGE, routingKey, record.getMsgId());
+            meterRegistry.counter("notify.republish.total",
+                    "channel", record.getNotifyType(), "outcome", "ok").increment();
             log.info("MQ republished msgId={} to {}", record.getMsgId(), routingKey);
         } catch (Exception e) {
             // 仅更新 status/failReason/updateTime，不覆盖 retry_count 等字段
@@ -94,6 +102,8 @@ public class WarnMessageProducer {
                     .set(MsgRecord::getStatus, MsgStatus.FAILED.getCode())
                     .set(MsgRecord::getFailReason, "MQ重投失败: " + e.getMessage())
                     .set(MsgRecord::getUpdateTime, LocalDateTime.now()));
+            meterRegistry.counter("notify.republish.total",
+                    "channel", record.getNotifyType(), "outcome", "failed").increment();
             log.error("MQ republish failed msgId={}", record.getMsgId(), e);
         }
     }

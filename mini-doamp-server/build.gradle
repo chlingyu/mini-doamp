@@ -19,8 +19,21 @@ dependencies {
     implementation "net.javacrumbs.shedlock:shedlock-spring:${shedlockVersion}"
     implementation "net.javacrumbs.shedlock:shedlock-provider-jdbc-template:${shedlockVersion}"
 
-    // Log4j2
+    // Log4j2 + JSON template layout (for Loki/ELK structured logs, P0-a)
     implementation 'org.springframework.boot:spring-boot-starter-log4j2'
+    implementation 'org.apache.logging.log4j:log4j-layout-template-json'
+
+    // Actuator + Micrometer Tracing (OTel bridge) + Prometheus registry (P0-a/b)
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // Flyway (P0-c: DB migration)
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-mysql'
+
+    // SpringDoc OpenAPI 3 (P0-d)
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
 
     // 集成测试需要引用 Redis/RabbitMQ 类型（用于 Mock）
     testImplementation 'org.springframework.boot:spring-boot-starter-data-redis'

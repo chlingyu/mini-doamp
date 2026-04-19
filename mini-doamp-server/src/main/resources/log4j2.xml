@@ -1,19 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="WARN">
     <Properties>
-        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
+        <!--
+          P0-a: 日志格式里保留 traceId/spanId（Micrometer Tracing 自动注入 MDC）、
+          requestId / userId / clientIp（MdcRequestFilter + JwtAuthFilter 注入）。
+          Log4j2 %X{k} 不支持 Logback 的 :- 默认值语法，key 缺失时直接渲染为空串。
+        -->
+        <Property name="CONSOLE_PATTERN">
+            %d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%t] [traceId=%X{traceId} spanId=%X{spanId}] [req=%X{requestId} user=%X{userId} ip=%X{clientIp}] %logger{36} - %msg%n
+        </Property>
+        <Property name="LOG_HOME">${sys:LOG_HOME:-logs}</Property>
+        <Property name="APP_NAME">${sys:APP_NAME:-mini-doamp}</Property>
     </Properties>
+
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="${LOG_PATTERN}"/>
+            <PatternLayout pattern="${CONSOLE_PATTERN}"/>
         </Console>
+
+        <!--
+          结构化 JSON 日志：供 Loki / Promtail / Filebeat 采集后落到 ELK / Grafana Loki。
+          使用 Log4j2 官方 JsonTemplateLayout + Logstash V1 schema（含 mdc 字段自动展开）。
+        -->
+        <RollingFile name="JsonFile"
+                     fileName="${LOG_HOME}/${APP_NAME}.json"
+                     filePattern="${LOG_HOME}/${APP_NAME}-%d{yyyy-MM-dd}-%i.json.gz">
+            <JsonTemplateLayout eventTemplateUri="classpath:LogstashJsonEventLayoutV1.json"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="100 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="14"/>
+        </RollingFile>
     </Appenders>
+
     <Loggers>
         <Logger name="com.demo.minidoamp" level="DEBUG" additivity="false">
             <AppenderRef ref="Console"/>
+            <AppenderRef ref="JsonFile"/>
         </Logger>
         <Root level="INFO">
             <AppenderRef ref="Console"/>
+            <AppenderRef ref="JsonFile"/>
         </Root>
     </Loggers>
 </Configuration>

@@ -22,5 +22,68 @@ services:
       - "5672:5672"
       - "15672:15672"
 
+  # --- P0-b: Observability stack ---
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    extra_hosts:
+      # Linux hosts: `host-gateway` resolves to the host IP so Prometheus can
+      # scrape an app running outside Docker. Docker Desktop already resolves
+      # host.docker.internal natively, so this is a no-op there.
+      - "host.docker.internal:host-gateway"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  # --- P0-e: the application itself (opt-in via --profile full) ---
+  # Default `docker compose up` starts only infra so you can iterate with bootRun;
+  # `docker compose --profile full up` rebuilds the image and starts everything.
+  app:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mini-doamp:local
+    depends_on:
+      - mysql
+      - redis
+      - rabbitmq
+    ports:
+      - "9999:9999"
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/mini_doamp?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      RABBIT_HOST: rabbitmq
+      RABBIT_PORT: "5672"
+      RABBIT_USERNAME: guest
+      RABBIT_PASSWORD: guest
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me-please-9f82c11e}
+      SPRING_REDIS_HOST: redis
+      TRACING_SAMPLING: "1.0"
+    restart: unless-stopped
+
 volumes:
   mysql_data:
+  prometheus_data:
+  grafana_data:

@@ -49,9 +49,7 @@ public abstract class BaseIntegrationTest {
         registry.add("spring.datasource.username", MYSQL::getUsername);
         registry.add("spring.datasource.password", MYSQL::getPassword);
         registry.add("spring.datasource.driver-class-name", MYSQL::getDriverClassName);
-        registry.add("spring.sql.init.mode", () -> "always");
-        registry.add("spring.sql.init.schema-locations", () -> "classpath:sql/schema.sql");
-        registry.add("spring.sql.init.data-locations", () -> "classpath:sql/data.sql");
+        // P0-c 起不再依赖 spring.sql.init；Flyway 自动执行 classpath:db/migration/V*.sql
     }
 
     @Autowired

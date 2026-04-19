@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mini-doamp.fullname" . }}-config
+  labels:
+    {{- include "mini-doamp.labels" . | nindent 4 }}
+data:
+  application.yaml: |
+    # Additional Spring overrides. The default application.yml baked into the
+    # image already reads DB_URL / JWT_SECRET / RABBIT_* / SPRING_REDIS_HOST
+    # from the environment, so most config belongs in values.yaml -> Deployment env.
+    #
+    # Anything you want to override at runtime (logging levels, feature flags)
+    # goes here and is mounted at /config/application.yaml (Spring Boot picks it up
+    # via spring.config.additional-location=/config/ when SPRING_CONFIG_ADDITIONAL_LOCATION
+    # is set, or set spring.config.import=optional:file:/config/).
+    logging:
+      level:
+        com.demo.minidoamp: INFO
