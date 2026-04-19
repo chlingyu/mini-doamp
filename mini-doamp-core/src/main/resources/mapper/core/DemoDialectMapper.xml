@@ -3,7 +3,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.demo.minidoamp.core.mapper.DemoDialectMapper">
 
-    <!-- ========== 日期格式化：MySQL 用 DATE_FORMAT，H2 用 FORMATDATETIME ========== -->
+    <!-- ========== 日期格式化：MySQL 方言示例（DATE_FORMAT） ========== -->
 
     <select id="selectFormattedWarnDate" resultType="map" databaseId="mysql">
         SELECT id,
@@ -14,29 +14,11 @@
         LIMIT #{limit}
     </select>
 
-    <select id="selectFormattedWarnDate" resultType="map" databaseId="h2">
-        SELECT id,
-               FORMATDATETIME(create_time, 'yyyy-MM-dd') AS formatted_date,
-               FORMATDATETIME(create_time, 'yyyy-MM-dd HH:mm:ss') AS formatted_datetime
-        FROM t_warn_record
-        ORDER BY create_time DESC
-        LIMIT #{limit}
-    </select>
-
-    <!-- ========== 字符串聚合：两者语法相同，但此处演示 databaseId 分离写法 ========== -->
+    <!-- ========== 字符串聚合：MySQL GROUP_CONCAT ========== -->
 
     <select id="selectGroupedIndexNames" resultType="map" databaseId="mysql">
         SELECT index_type,
                GROUP_CONCAT(index_name SEPARATOR ', ') AS index_names,
-               COUNT(*) AS cnt
-        FROM t_warn_index
-        WHERE deleted = 0
-        GROUP BY index_type
-    </select>
-
-    <select id="selectGroupedIndexNames" resultType="map" databaseId="h2">
-        SELECT index_type,
-               GROUP_CONCAT(index_name) AS index_names,
                COUNT(*) AS cnt
         FROM t_warn_index
         WHERE deleted = 0

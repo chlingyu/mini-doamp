@@ -29,7 +29,7 @@ public class DatabaseAdapterFactory {
     /**
      * 根据 databaseId 获取适配器
      *
-     * @param databaseId 数据库标识（mysql / h2）
+     * @param databaseId 数据库标识（mysql，未来可扩展 postgres / oracle）
      * @return 对应的适配器，未匹配则返回 MySQL 适配器
      */
     public DatabaseAdapter getAdapter(String databaseId) {
