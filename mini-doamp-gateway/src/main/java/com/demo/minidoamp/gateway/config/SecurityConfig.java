@@ -35,6 +35,9 @@ public class SecurityConfig {
                 // P0-b: Actuator probes + Prometheus scrape（生产阶段建议改为 IP 白名单或独立 mgmt port）
                 .requestMatchers("/actuator/health", "/actuator/health/**",
                                  "/actuator/info", "/actuator/prometheus").permitAll()
+                // 其他 /actuator/** 默认 denyAll，防止未来暴露 env/beans/mappings/configprops/loggers
+                // 时被 anyRequest().permitAll() 兜底意外开放（见 P0 /security-review finding）
+                .requestMatchers("/actuator/**").denyAll()
                 // P0-d: SpringDoc OpenAPI + Swagger UI
                 .requestMatchers("/v3/api-docs", "/v3/api-docs/**",
                                  "/swagger-ui", "/swagger-ui/**", "/swagger-ui.html").permitAll()
