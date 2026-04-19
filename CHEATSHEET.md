@@ -16,20 +16,26 @@
 
 ## 就这两句，不用记别的。
 
-## 明天前后端联调启动命令
+## 前后端联调启动命令（生产级，依赖 Docker Compose）
 
-### 后端（推荐先用 H2）
+### 中间件（MySQL / Redis / RabbitMQ）
+
+```powershell
+cd D:\Projects\mini-doamp
+docker compose up -d
+```
+
+### 后端
 
 ```powershell
 cd D:\Projects\mini-doamp
 $env:JWT_SECRET="miniDoampDevKey12345678901234567890"
-.\gradlew.bat :mini-doamp-server:bootRun --args="--spring.profiles.active=h2"
+.\gradlew.bat :mini-doamp-server:bootRun
 ```
 
 - 访问地址：`http://localhost:9999`
-- H2 控制台：`http://localhost:9999/h2-console`
 - `bootRun` 已自动附加 `-Dfile.encoding=UTF-8`（Windows 中文编码修复）
-- 若直接运行 jar，需手动加：`java -Dfile.encoding=UTF-8 -jar mini-doamp.jar --spring.profiles.active=h2`
+- 直接运行 jar：`java -Dfile.encoding=UTF-8 -jar mini-doamp.jar`
 - 若未启动 `XXL-Job Admin`，控制台会出现注册失败日志，但不影响大部分页面联调
 
 ### 前端

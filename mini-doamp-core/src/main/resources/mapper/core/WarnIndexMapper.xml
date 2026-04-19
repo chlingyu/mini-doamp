@@ -13,14 +13,4 @@
         ORDER BY index_type ASC
     </select>
 
-    <select id="selectTypeSummary" resultType="com.demo.minidoamp.api.vo.WarnIndexTypeSummaryVO" databaseId="h2">
-        SELECT index_type,
-               COUNT(*) AS index_count,
-               LISTAGG(index_name, ', ') WITHIN GROUP (ORDER BY index_name) AS index_names
-        FROM t_warn_index
-        WHERE deleted = 0
-        GROUP BY index_type
-        ORDER BY index_type ASC
-    </select>
-
 </mapper>

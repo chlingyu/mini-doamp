@@ -9,11 +9,8 @@ dependencies {
     api project(':mini-doamp-event')
     api project(':mini-doamp-sop')
 
-    // MySQL
-    runtimeOnly 'mysql:mysql-connector-java:8.0.33'
-
-    // H2 (测试/多库适配演示)
-    runtimeOnly 'com.h2database:h2'
+    // MySQL (Spring Boot 3.x: com.mysql:mysql-connector-j)
+    runtimeOnly "com.mysql:mysql-connector-j:${mysqlConnectorVersion}"
 
     // XXL-Job
     implementation "com.xuxueli:xxl-job-core:${xxlJobVersion}"
@@ -29,9 +26,9 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-data-redis'
     testImplementation 'org.springframework.boot:spring-boot-starter-amqp'
 
-    // Testcontainers
-    testImplementation 'org.testcontainers:junit-jupiter:1.19.3'
-    testImplementation 'org.testcontainers:mysql:1.19.3'
+    // Testcontainers (dev/test 用真实 MySQL，取代 H2)
+    testImplementation "org.testcontainers:junit-jupiter:${testcontainersVersion}"
+    testImplementation "org.testcontainers:mysql:${testcontainersVersion}"
 }
 
 configurations {

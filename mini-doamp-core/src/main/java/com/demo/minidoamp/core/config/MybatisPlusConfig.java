@@ -30,14 +30,13 @@ public class MybatisPlusConfig {
 
     /**
      * MyBatis databaseIdProvider — 自动识别当前数据库类型
-     * Mapper XML 中可通过 databaseId="mysql" / databaseId="h2" 编写差异化 SQL
+     * Mapper XML 中可通过 databaseId="mysql" 编写差异化 SQL
      */
     @Bean
     public DatabaseIdProvider databaseIdProvider() {
         VendorDatabaseIdProvider provider = new VendorDatabaseIdProvider();
         Properties properties = new Properties();
         properties.setProperty("MySQL", "mysql");
-        properties.setProperty("H2", "h2");
         provider.setProperties(properties);
         return provider;
     }
@@ -46,9 +45,7 @@ public class MybatisPlusConfig {
         try (Connection conn = dataSource.getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
             String productName = metaData.getDatabaseProductName();
-            if (productName.toLowerCase().contains("h2")) {
-                return DbType.H2;
-            }
+            log.debug("DatabaseMetaData.databaseProductName={}", productName);
         } catch (SQLException e) {
             log.warn("Failed to detect database type, fallback to MYSQL", e);
         }

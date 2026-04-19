@@ -14,15 +14,4 @@
         LIMIT #{limit}
     </select>
 
-    <select id="selectTrend" resultType="com.demo.minidoamp.api.vo.WarnTrendVO" databaseId="h2">
-        SELECT FORMATDATETIME(warn_time, 'yyyy-MM-dd') AS stat_date,
-               COUNT(*) AS warn_count,
-               MAX(warn_level) AS max_warn_level
-        FROM t_warn_record
-        WHERE warn_time <![CDATA[>=]]> #{startTime}
-        GROUP BY FORMATDATETIME(warn_time, 'yyyy-MM-dd')
-        ORDER BY stat_date DESC
-        LIMIT #{limit}
-    </select>
-
 </mapper>

@@ -2,7 +2,6 @@ package com.demo.minidoamp.gateway.config;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -30,34 +29,34 @@ public class JwtUtil {
 
     public String generateToken(Long userId, String username) {
         return Jwts.builder()
-                .setId(UUID.randomUUID().toString())
-                .setSubject(username)
+                .id(UUID.randomUUID().toString())
+                .subject(username)
                 .claim("userId", userId)
                 .claim("type", "access")
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getKey(), SignatureAlgorithm.HS256)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getKey(), Jwts.SIG.HS256)
                 .compact();
     }
 
     public String generateRefreshToken(Long userId, String username) {
         return Jwts.builder()
-                .setId(UUID.randomUUID().toString())
-                .setSubject(username)
+                .id(UUID.randomUUID().toString())
+                .subject(username)
                 .claim("userId", userId)
                 .claim("type", "refresh")
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + refreshExpiration))
-                .signWith(getKey(), SignatureAlgorithm.HS256)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + refreshExpiration))
+                .signWith(getKey(), Jwts.SIG.HS256)
                 .compact();
     }
 
     public Claims parseToken(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getKey())
+        return Jwts.parser()
+                .verifyWith(getKey())
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public boolean isValid(String token) {
