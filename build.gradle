@@ -23,10 +23,18 @@ subprojects {
     apply plugin: 'java-library'
     apply plugin: 'io.spring.dependency-management'
 
-    sourceCompatibility = '1.8'
-    targetCompatibility = '1.8'
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(javaLanguageVersion as int)
+        }
+    }
 
-    [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.release = Integer.parseInt(javaLanguageVersion)
+        // Spring Framework 6 要求保留方法参数名，否则按参数名的 bean 注入 / @ConfigurationProperties 绑定会失败
+        options.compilerArgs << '-parameters'
+    }
 
     dependencies {
         compileOnly "org.projectlombok:lombok:${lombokVersion}"

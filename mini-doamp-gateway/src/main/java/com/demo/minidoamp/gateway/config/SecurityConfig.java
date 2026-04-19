@@ -4,6 +4,7 @@ import com.demo.minidoamp.gateway.filter.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -12,7 +13,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.http.HttpMethod;
 
 @Configuration
 @RequiredArgsConstructor
@@ -24,30 +24,28 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf().disable()
-            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            .and()
-            .exceptionHandling()
+        http
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(eh -> eh
                 .authenticationEntryPoint(restAuthenticationEntryPoint)
-                .accessDeniedHandler(restAccessDeniedHandler)
-            .and()
-            .authorizeRequests()
-                .antMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
-                .antMatchers(HttpMethod.GET, "/api/auth/userInfo").authenticated()
-                .antMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
-                .antMatchers("/api/users", "/api/users/**", "/api/roles", "/api/roles/**", "/api/depts", "/api/depts/**").hasAuthority("system.user")
-                .antMatchers("/api/warn/indexes", "/api/warn/indexes/**").hasAuthority("warn.index")
-                .antMatchers("/api/warn/rules", "/api/warn/rules/**").hasAuthority("warn.rule")
-                .antMatchers("/api/warn/records", "/api/warn/records/**").hasAuthority("warn.record")
-                .antMatchers("/api/msg/records", "/api/msg/records/**").hasAuthority("warn.message")
-                .antMatchers("/api/sop/workflows", "/api/sop/workflows/**").hasAuthority("sop.workflow")
-                .antMatchers("/api/sop/task-templates", "/api/sop/task-templates/**").hasAuthority("sop.template")
-                .antMatchers("/api/sop/tasks", "/api/sop/tasks/**", "/api/sop/task-execs", "/api/sop/task-execs/**").hasAnyAuthority("sop.task", "sop.approve")
-                .antMatchers("/api/dict", "/api/dict/**", "/api/cache/refresh/dict", "/api/cache/refresh/dict/**").hasAuthority("system.dict")
-                .antMatchers("/api/system/job/**", "/api/cache/refresh/index", "/api/cache/refresh/all", "/api/db/**").hasAuthority("system.job")
-                .antMatchers("/api/**").authenticated()
-                .anyRequest().permitAll()
-            .and()
+                .accessDeniedHandler(restAccessDeniedHandler))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/auth/userInfo").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
+                .requestMatchers("/api/users", "/api/users/**", "/api/roles", "/api/roles/**", "/api/depts", "/api/depts/**").hasAuthority("system.user")
+                .requestMatchers("/api/warn/indexes", "/api/warn/indexes/**").hasAuthority("warn.index")
+                .requestMatchers("/api/warn/rules", "/api/warn/rules/**").hasAuthority("warn.rule")
+                .requestMatchers("/api/warn/records", "/api/warn/records/**").hasAuthority("warn.record")
+                .requestMatchers("/api/msg/records", "/api/msg/records/**").hasAuthority("warn.message")
+                .requestMatchers("/api/sop/workflows", "/api/sop/workflows/**").hasAuthority("sop.workflow")
+                .requestMatchers("/api/sop/task-templates", "/api/sop/task-templates/**").hasAuthority("sop.template")
+                .requestMatchers("/api/sop/tasks", "/api/sop/tasks/**", "/api/sop/task-execs", "/api/sop/task-execs/**").hasAnyAuthority("sop.task", "sop.approve")
+                .requestMatchers("/api/dict", "/api/dict/**", "/api/cache/refresh/dict", "/api/cache/refresh/dict/**").hasAuthority("system.dict")
+                .requestMatchers("/api/system/job/**", "/api/cache/refresh/index", "/api/cache/refresh/all", "/api/db/**").hasAuthority("system.job")
+                .requestMatchers("/api/**").authenticated()
+                .anyRequest().permitAll())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
