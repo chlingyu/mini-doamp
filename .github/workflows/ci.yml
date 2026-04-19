@@ -5,7 +5,6 @@ on:
     branches:
       - master
       - "upgrade/**"
-      - "worktree-upgrade-*"
   pull_request:
     branches:
       - master
@@ -43,6 +42,11 @@ jobs:
       - name: Verify Docker
         run: docker version
 
+      # Windows-authored commits may strip the Linux exec bit. Defensive: make sure
+      # gradlew is executable even if `git update-index --chmod=+x` was missed.
+      - name: Ensure gradlew is executable
+        run: chmod +x gradlew
+
       - name: Compile
         run: ./gradlew --no-daemon compileJava compileTestJava
 
@@ -62,8 +66,13 @@ jobs:
   build-image:
     name: Build & push image to GHCR
     needs: test
+    # Disabled until GHCR package permissions are set up on the repo (Settings →
+    # Actions → General → Workflow permissions = "Read and write", plus the
+    # package being owned by the user). Re-enable by removing the `if: false`.
+    # Tracking issue: P1 — secrets/container-registry pipeline.
+    if: false
     # Only push images from master commits (not PRs from forks)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    # if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
