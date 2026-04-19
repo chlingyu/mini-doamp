@@ -1,0 +1,41 @@
+# Build artifacts & caches
+**/build/
+**/.gradle/
+**/.idea/
+**/.vscode/
+**/out/
+**/target/
+**/*.iml
+**/*.class
+
+# Node / frontend
+mini-doamp-vue/node_modules/
+mini-doamp-vue/dist/
+
+# Local runtime artifacts
+logs/
+*.log
+boot-h2.err
+tmp-start-process.txt
+
+# Git / CI scaffolding
+.git/
+.gitignore
+.github/
+.claude/
+
+# Docs only needed on host
+docs/
+*.md
+!README.md
+
+# Docker / deploy files we don't need inside image
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-compose.*.yml
+deploy/
+
+# OS noise
+.DS_Store
+Thumbs.db

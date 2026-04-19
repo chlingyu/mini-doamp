@@ -15,6 +15,8 @@ import com.demo.minidoamp.core.mapper.SopNodeMapper;
 import com.demo.minidoamp.core.mapper.SopTaskExecMapper;
 import com.demo.minidoamp.core.mapper.SopTaskMapper;
 import com.demo.minidoamp.sop.service.SopTaskService;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
@@ -37,6 +39,7 @@ public class WorkflowEngine {
     private final SopNodeMapper nodeMapper;
     private final SopTaskService taskService;
     private final SopNotifier sopNotifier;
+    private final MeterRegistry meterRegistry;
     private final Map<String, NodeHandler> handlerMap;
 
     public WorkflowEngine(SopTaskExecMapper taskExecMapper,
@@ -44,12 +47,14 @@ public class WorkflowEngine {
                            SopNodeMapper nodeMapper,
                            @Lazy SopTaskService taskService,
                            SopNotifier sopNotifier,
+                           MeterRegistry meterRegistry,
                            List<NodeHandler> handlers) {
         this.taskExecMapper = taskExecMapper;
         this.taskMapper = taskMapper;
         this.nodeMapper = nodeMapper;
         this.taskService = taskService;
         this.sopNotifier = sopNotifier;
+        this.meterRegistry = meterRegistry;
         this.handlerMap = handlers.stream()
                 .collect(Collectors.toMap(NodeHandler::getNodeType, Function.identity()));
     }
@@ -57,57 +62,81 @@ public class WorkflowEngine {
     @Transactional
     public void advance(Long taskExecId, String action, String result,
                         String feedbackData, String remark, Long operatorId) {
-        SopTaskExec exec = taskExecMapper.selectById(taskExecId);
-        if (exec == null) {
-            throw new BusinessException(ErrorCode.TASK_EXEC_NOT_FOUND);
-        }
-        SopTask task = taskMapper.selectById(exec.getTaskId());
-        SopNode currentNode = nodeMapper.selectById(exec.getNodeId());
-        if (currentNode == null) {
-            throw new BusinessException(ErrorCode.NODE_NOT_FOUND);
-        }
+        Timer.Sample sample = Timer.start(meterRegistry);
+        String nodeType = "unknown";
+        String outcome = "success";
+        try {
+            SopTaskExec exec = taskExecMapper.selectById(taskExecId);
+            if (exec == null) {
+                outcome = "exec_not_found";
+                throw new BusinessException(ErrorCode.TASK_EXEC_NOT_FOUND);
+            }
+            SopTask task = taskMapper.selectById(exec.getTaskId());
+            SopNode currentNode = nodeMapper.selectById(exec.getNodeId());
+            if (currentNode == null) {
+                outcome = "node_not_found";
+                throw new BusinessException(ErrorCode.NODE_NOT_FOUND);
+            }
+            nodeType = currentNode.getNodeType();
 
-        validateOperator(exec, currentNode, action, operatorId);
-        claimPendingExec(exec, operatorId);
-        exec = taskExecMapper.selectById(taskExecId);
+            validateOperator(exec, currentNode, action, operatorId);
+            claimPendingExec(exec, operatorId);
+            exec = taskExecMapper.selectById(taskExecId);
 
-        // 状态机校验
-        TaskStatus currentStatus = TaskStatus.of(task.getStatus());
-        TaskStatus targetStatus = ActionType.REJECT.getCode().equals(action)
-                ? TaskStatus.REJECTED : determineNextTaskStatus(task, currentNode, result);
-        if (!currentStatus.canTransitTo(targetStatus)) {
-            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION);
-        }
+            // 状态机校验
+            TaskStatus currentStatus = TaskStatus.of(task.getStatus());
+            TaskStatus targetStatus = ActionType.REJECT.getCode().equals(action)
+                    ? TaskStatus.REJECTED : determineNextTaskStatus(task, currentNode, result);
+            if (!currentStatus.canTransitTo(targetStatus)) {
+                outcome = "invalid_transition";
+                throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION);
+            }
 
-        String fromStatus = task.getStatus();
+            String fromStatus = task.getStatus();
 
-        // 驳回处理
-        if (ActionType.REJECT.getCode().equals(action)) {
-            handleReject(exec, task, currentNode, remark, operatorId);
+            // 驳回处理
+            if (ActionType.REJECT.getCode().equals(action)) {
+                handleReject(exec, task, currentNode, remark, operatorId);
+                sendNotification(task, fromStatus, task.getStatus(), operatorId);
+                return;
+            }
+
+            // 执行当前节点逻辑（策略模式）
+            NodeHandler handler = handlerMap.get(currentNode.getNodeType());
+            if (handler != null) {
+                handler.handle(exec, currentNode, result, feedbackData);
+            } else {
+                exec.setStatus(TaskExecStatus.DONE.getCode());
+                exec.setEndTime(LocalDateTime.now());
+            }
+            if (exec.getStartTime() == null) {
+                exec.setStartTime(LocalDateTime.now());
+            }
+            taskExecMapper.updateById(exec);
+
+            // 推进到下一节点（分支节点按条件路由）
+            advanceToNext(task, currentNode, result);
+
+            // 一条准确的状态变更日志 + MQ 通知
+            taskService.writeLog(task.getId(), exec.getId(), currentNode.getId(),
+                    operatorId, action, fromStatus, task.getStatus(), remark);
             sendNotification(task, fromStatus, task.getStatus(), operatorId);
-            return;
+        } catch (RuntimeException ex) {
+            if ("success".equals(outcome)) {
+                outcome = "error";
+            }
+            throw ex;
+        } finally {
+            sample.stop(Timer.builder("sop.task.advance.duration")
+                    .tag("action", action == null ? "unknown" : action)
+                    .tag("nodeType", nodeType)
+                    .tag("outcome", outcome)
+                    .register(meterRegistry));
+            meterRegistry.counter("sop.task.advance.total",
+                    "action", action == null ? "unknown" : action,
+                    "nodeType", nodeType,
+                    "outcome", outcome).increment();
         }
-
-        // 执行当前节点逻辑（策略模式）
-        NodeHandler handler = handlerMap.get(currentNode.getNodeType());
-        if (handler != null) {
-            handler.handle(exec, currentNode, result, feedbackData);
-        } else {
-            exec.setStatus(TaskExecStatus.DONE.getCode());
-            exec.setEndTime(LocalDateTime.now());
-        }
-        if (exec.getStartTime() == null) {
-            exec.setStartTime(LocalDateTime.now());
-        }
-        taskExecMapper.updateById(exec);
-
-        // 推进到下一节点（分支节点按条件路由）
-        advanceToNext(task, currentNode, result);
-
-        // 一条准确的状态变更日志 + MQ 通知
-        taskService.writeLog(task.getId(), exec.getId(), currentNode.getId(),
-                operatorId, action, fromStatus, task.getStatus(), remark);
-        sendNotification(task, fromStatus, task.getStatus(), operatorId);
     }
 
     private void handleReject(SopTaskExec exec, SopTask task, SopNode node,

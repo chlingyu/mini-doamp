@@ -1,0 +1,134 @@
+# Default values for mini-doamp.
+# Values marked (required in prod) MUST be overridden via --set / -f values-prod.yaml.
+
+replicaCount: 2
+
+image:
+  repository: ghcr.io/chlingyu/mini-doamp
+  tag: ""           # falls back to .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  fsGroup: 1000
+
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 9999
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: mini-doamp.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 768Mi
+  limits:
+    cpu: 1000m
+    memory: 1536Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# --- application-level configuration ---
+# config goes into a ConfigMap mounted on /config; secrets come from env/secretRef.
+config:
+  springProfiles: "prod"
+  tracingSamplingProbability: "0.1"
+  xxlJob:
+    enabled: false
+    adminAddress: ""
+    accessToken: ""
+
+# --- required externals in prod ---
+# JWT secret must come from a Kubernetes Secret. External Secrets Operator (P1)
+# will materialize these from Vault; for bootstrapping you can create a Secret manually.
+externalSecrets:
+  enabled: false
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  remoteRef: {}
+
+secretRef:
+  name: mini-doamp-secrets   # expected keys: DB_PASSWORD, JWT_SECRET
+  optional: false
+
+database:
+  host: mysql
+  port: 3306
+  name: mini_doamp
+  user: mini_doamp
+  sslMode: DISABLED
+
+redis:
+  host: redis-master
+  port: 6379
+  database: 0
+
+rabbitmq:
+  host: rabbitmq
+  port: 5672
+  user: mini_doamp
+  virtualHost: /
+
+# --- probes ---
+probes:
+  liveness:
+    path: /actuator/health/liveness
+    initialDelaySeconds: 45
+    periodSeconds: 15
+    failureThreshold: 3
+  readiness:
+    path: /actuator/health/readiness
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    failureThreshold: 6
+
+# --- Prometheus Operator (optional, P2 enables with kube-prometheus-stack) ---
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  path: /actuator/prometheus
+  labels: {}

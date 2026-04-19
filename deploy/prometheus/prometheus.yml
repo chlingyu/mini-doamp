@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: mini-doamp-local
+
+scrape_configs:
+  - job_name: 'mini-doamp'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets:
+          # host.docker.internal 在 Docker Desktop 下指向宿主机；bootRun 监听 9999
+          - 'host.docker.internal:9999'
+        labels:
+          application: 'mini-doamp'
+          env: 'local'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

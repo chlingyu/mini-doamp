@@ -13,6 +13,8 @@ import com.demo.minidoamp.core.mapper.WarnRuleMapper;
 import com.demo.minidoamp.core.mapper.WarnThresholdMapper;
 import com.demo.minidoamp.event.mq.producer.WarnMessageProducer;
 import com.demo.minidoamp.event.strategy.WarnStrategy;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -34,6 +36,7 @@ public class WarnEngine {
     private final WarnRuleMapper ruleMapper;
     private final WarnRecordMapper recordMapper;
     private final WarnMessageProducer messageProducer;
+    private final MeterRegistry meterRegistry;
 
     private Map<String, WarnStrategy> strategyMap;
 
@@ -45,37 +48,59 @@ public class WarnEngine {
     }
 
     public List<WarnRecord> check(Long ruleId) {
-        WarnRule rule = ruleMapper.selectById(ruleId);
-        if (rule == null) {
-            throw new BusinessException(ErrorCode.RULE_NOT_FOUND);
+        Timer.Sample sample = Timer.start(meterRegistry);
+        String indexType = "unknown";
+        String outcome = "success";
+        try {
+            WarnRule rule = ruleMapper.selectById(ruleId);
+            if (rule == null) {
+                outcome = "rule_not_found";
+                throw new BusinessException(ErrorCode.RULE_NOT_FOUND);
+            }
+
+            WarnIndex index = indexMapper.selectById(rule.getIndexId());
+            if (index == null) {
+                outcome = "index_not_found";
+                throw new BusinessException(ErrorCode.INDEX_NOT_FOUND);
+            }
+            indexType = index.getIndexType();
+
+            List<WarnThreshold> thresholds = thresholdMapper.selectList(
+                    new LambdaQueryWrapper<WarnThreshold>()
+                            .eq(WarnThreshold::getIndexId, index.getId()));
+
+            WarnStrategy strategy = strategyMap.get(index.getIndexType());
+            if (strategy == null) {
+                outcome = "strategy_missing";
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR);
+            }
+
+            List<WarnRecord> records = strategy.check(index, thresholds);
+            records.forEach(r -> {
+                r.setRuleId(ruleId);
+                recordMapper.insert(r);
+            });
+
+            meterRegistry.counter("warn.triggered.total",
+                    "indexType", indexType).increment(records.size());
+
+            // 触发消息推送
+            if (!records.isEmpty() && StringUtils.hasText(rule.getNotifyType())) {
+                records.forEach(r -> messageProducer.publish(r, rule));
+            }
+
+            log.info("WarnEngine.check ruleId={} indexType={} triggered={}", ruleId, index.getIndexType(), records.size());
+            return records;
+        } catch (RuntimeException ex) {
+            if ("success".equals(outcome)) {
+                outcome = "error";
+            }
+            throw ex;
+        } finally {
+            sample.stop(Timer.builder("warn.check.duration")
+                    .tag("indexType", indexType)
+                    .tag("outcome", outcome)
+                    .register(meterRegistry));
         }
-
-        WarnIndex index = indexMapper.selectById(rule.getIndexId());
-        if (index == null) {
-            throw new BusinessException(ErrorCode.INDEX_NOT_FOUND);
-        }
-
-        List<WarnThreshold> thresholds = thresholdMapper.selectList(
-                new LambdaQueryWrapper<WarnThreshold>()
-                        .eq(WarnThreshold::getIndexId, index.getId()));
-
-        WarnStrategy strategy = strategyMap.get(index.getIndexType());
-        if (strategy == null) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
-        }
-
-        List<WarnRecord> records = strategy.check(index, thresholds);
-        records.forEach(r -> {
-            r.setRuleId(ruleId);
-            recordMapper.insert(r);
-        });
-
-        // 触发消息推送
-        if (!records.isEmpty() && StringUtils.hasText(rule.getNotifyType())) {
-            records.forEach(r -> messageProducer.publish(r, rule));
-        }
-
-        log.info("WarnEngine.check ruleId={} indexType={} triggered={}", ruleId, index.getIndexType(), records.size());
-        return records;
     }
 }

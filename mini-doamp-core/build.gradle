@@ -25,4 +25,7 @@ dependencies {
 
     // EasyExcel (4.x = Jakarta)
     api "com.alibaba:easyexcel:${easyexcelVersion}"
+
+    // Micrometer core (P0-b: business metrics) — actuator + registry 由 server 模块引入
+    api 'io.micrometer:micrometer-core'
 }

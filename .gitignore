@@ -35,6 +35,9 @@ mini-doamp-vue/dist/
 
 # Local runtime logs
 .codex-run/
+# Log4j2 JSON file appender output (P0-a)
+mini-doamp-server/logs/
+logs/
 
 # Environment secrets (only .env.example is tracked)
 .env
