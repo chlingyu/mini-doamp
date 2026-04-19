@@ -203,3 +203,38 @@ Claude 写代码 → compileJava → 标记"待审查" → Codex 审查（可能
   - 实测命令：`npm run test:unit`
   - 结果：`2 passed, 0 failed`
 - 结论：Phase 6/7 的“可自动执行验证”缺口已关闭，可进入下一轮全量回归或面试演示准备。
+
+---
+
+## 生产化改造阶段（2026-04-18 启动）
+
+面试级 → 生产级路线确认：K8s 自建 + 真微服务 + 前端全量 TS。Roadmap P-1→P7 共 9 阶段，预计 12-14 周。
+
+### P-1：Java / Spring Boot 升级（worktree `upgrade-boot3`，🔄 进行中）
+
+**目标**：Java 1.8 → 21、Spring Boot 2.7 → 3.4、删 H2、javax → jakarta。
+
+| Step | 内容 | 状态 |
+|---|---|---|
+| 1 | Gradle 7.6 → 8.10.2 + Foojay Toolchain + Daemon JVM 切 JDK 17 | ✅ |
+| 2 | Spring Boot 3.4.1 + Spring Cloud 2024.0.0 + MyBatis Plus 3.5.9 + jsqlparser + jjwt 0.12.6 + ShedLock 5.16 + MySQL Connector-J 8.4 + Testcontainers 1.20 | ✅ |
+| 3 | javax → jakarta 全量替换（31 文件 53 import，validation/servlet/annotation.PostConstruct；保留 javax.sql / javax.crypto 属 JDK 内置） | ✅ |
+| 4 | JwtUtil 改 jjwt 0.12 API（`Jwts.parser().verifyWith().parseSignedClaims().getPayload()`）+ SecurityConfig 改 Spring Security 6（SecurityFilterChain lambda DSL + requestMatchers + authorizeHttpRequests） | ✅ |
+| 5 | compileJava + compileTestJava 全模块 BUILD SUCCESSFUL | ✅ |
+| 6 | 彻底删除 H2：H2Adapter.java / application-h2.yml / schema-h2.sql / DatabaseAdapterTest.java / Mapper XML databaseId="h2" 分支 / MybatisPlusConfig H2 检测；测试基建改 Testcontainers MySQL 共享单例；README/CHEATSHEET 改为 Docker Compose 全栈 | ✅ |
+| 7 | `bootRun` 冒烟 + docker-compose MySQL/Redis/RabbitMQ 全链路 | ⏸ 待 Docker Desktop 启动 |
+| 8 | `./gradlew test` 集成测试（依赖 Testcontainers MySQL） | ⏸ 待 Docker Desktop 启动 |
+| 9 | 分层 commit + /review + /security-review + PR | ⏸ |
+| 10 | 切 JDK 17 → JDK 21 LTS（Foojay 下载或手动安装） | ⏸ |
+
+**净改动**：54 files changed, +194 insertions, -710 deletions（H2 schema-h2.sql 贡献 -313 行）。
+
+**阻塞**：Step 7/8 需要 Docker Desktop 运行（MySQL 8 / Redis / RabbitMQ）。启动后继续。
+
+**关键设计决策（P-1）**：
+- Daemon JVM 先用本地 JDK 17（`D:/jdk/jdk-17.0.8`），toolchain language version 也临时用 17，保留 Step 10 切 21
+- MyBatis Plus 3.5.9 起 `PaginationInnerInterceptor` 依赖 jsqlparser，独立 artifact `mybatis-plus-jsqlparser` 需显式引入
+- MySQL Connector artifact 从 `mysql:mysql-connector-java` → `com.mysql:mysql-connector-j`
+- H2 作为多库适配的"演示方"彻底移除；`DatabaseAdapter` 接口 + Factory 保留（未来加 PostgreSQL/Oracle 可直接扩）
+- 测试基建：`BaseIntegrationTest` 静态 Testcontainers MySQL（withReuse=true），所有继承类共享同一个容器实例降低启动代价
+

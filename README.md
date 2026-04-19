@@ -4,31 +4,13 @@
 
 ## Quick Start
 
-### Option A — Zero-dependency (H2 mode, recommended for demo)
-
-No Docker, no MySQL, no RabbitMQ. Everything runs in-memory.
+> Requires Docker Desktop (Windows/macOS) or Docker + compose plugin (Linux) for MySQL / Redis / RabbitMQ.
 
 ```bash
-# 1. Backend (H2 in-memory, port 9999)
-./gradlew.bat :mini-doamp-server:bootRun -Pargs='--spring.profiles.active=h2'
+# 1. Start infrastructure (MySQL 8, Redis, RabbitMQ)
+docker compose up -d
 
-# 2. Frontend (port 8090)
-cd mini-doamp-vue && npm install && npm run serve
-```
-
-Open http://localhost:8090 — Login: `admin` / `admin123`
-
-> **Note:** H2 mode disables RabbitMQ consumers. MQ-related features (message delivery, DLQ retry) will mock-send only. All other features work identically.
-
----
-
-### Option B — Full Stack (MySQL + Redis + RabbitMQ via Docker)
-
-```bash
-# 1. Start infrastructure
-docker-compose up -d
-
-# 2. Backend (MySQL mode, port 9999)
+# 2. Backend (port 9999) — Spring Boot 3.4 / Java 17+
 set DB_PASSWORD=root
 set JWT_SECRET=your_jwt_secret_at_least_32_chars_here
 ./gradlew.bat :mini-doamp-server:bootRun
@@ -36,6 +18,8 @@ set JWT_SECRET=your_jwt_secret_at_least_32_chars_here
 # 3. Frontend (port 8090)
 cd mini-doamp-vue && npm install && npm run serve
 ```
+
+Open http://localhost:8090 — Login: `admin` / `admin123`
 
 > **Tip:** See `.env.example` for all configurable environment variables.
 
@@ -48,7 +32,7 @@ cd mini-doamp-vue && npm install && npm run serve
 
 ### Prerequisites
 
-Start both backend (:9999) and frontend (:8090) using either Option A or B above, then run:
+Start both backend (:9999) and frontend (:8090) using the Quick Start above, then run:
 
 ```bash
 # Full E2E (29 cases, Playwright)
@@ -101,7 +85,7 @@ Fires 20 concurrent warning trigger requests, measures baseline single-request l
 |--------|-------|------|
 | Concurrency | 20 | PowerShell `Start-Job` parallel HTTP |
 | Baseline (single) | ~160 ms | 3-run median, cold JVM |
-| P95 (20 conc) | ~3651 ms | Expected degradation under H2 + single-thread |
+| P95 (20 conc) | ~3651 ms | Expected degradation under dev-class MySQL + single-thread |
 | **SLA target** | ≤ 5000 ms | Internal business rule; **passed with ~37% headroom** |
 | Data integrity | ✅ | `recordDeltaMatchesApiSum = true` — 20 × 2 = 40, exact match |
 
