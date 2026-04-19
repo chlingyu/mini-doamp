@@ -238,7 +238,7 @@ Claude 写代码 → compileJava → 标记"待审查" → Codex 审查（可能
 - 测试基建：`BaseIntegrationTest` 静态 Testcontainers MySQL 8.0（withReuse=true），所有继承类共享同一个容器实例降低启动代价
 - Spring Framework 6 要求保留方法参数名（按名 bean 注入 / `@ConfigurationProperties` 绑定），全模块添加 `javac -parameters` 标志
 
-### P0：可观测性与部署底座（worktree `upgrade-p0-observability`，🔄 冒烟通过，待 review/PR）
+### P0：可观测性与部署底座（✅ 完成，2026-04-19 合入 master，PR #2）
 
 **目标**：结构化日志 + MDC/TraceId、Prometheus/Grafana、Flyway、SpringDoc、Docker 多阶段、GitHub Actions、Helm 骨架。
 
@@ -267,4 +267,8 @@ Claude 写代码 → compileJava → 标记"待审查" → Codex 审查（可能
 - SpringDoc Controller 级 `@Tag` / `@Operation` 注解精细化 → P7（运维文档阶段）。
 - Actuator `/actuator/prometheus` 生产级 IP 白名单 + management port 独立化 → P2。
 - XXL-Job admin 在本地 dev 没启动会刷 `Connection refused` 错误日志，不影响 bootRun 冒烟；后续考虑 dev profile 里 `xxl.job.admin.addresses=""` 屏蔽。
+
+**审查结论（P0）**：
+- `/review` APPROVE，记 5 条延后到 P1/P2 的加固点（actuator 端点收口、log injection sanitize、SpringDoc prod 禁用、Docker base image digest pin、Helm `readOnlyRootFilesystem`）。
+- `/security-review` 1 条 MEDIUM:`/actuator/{env,beans,mappings,configprops,loggers,metrics}` 因 `SecurityFilterChain` 最末规则 `.anyRequest().permitAll()` 兜底而被匿名可达，`/actuator/loggers` POST 还能匿名改运行时日志级别。**已在 PR #2 末尾 commit `fe2e19e` 修复**:`exposure.include` 收窄到 `health,info,prometheus`、`SecurityConfig` 新增 `.requestMatchers("/actuator/**").denyAll()` 兜底、`management.endpoint.loggers.access: read_only` 作为 @WriteOperation 二道锁。bootRun 实测矩阵:`/actuator/health|info|prometheus` 200，其他 `/actuator/*` 全 401，`POST /actuator/loggers/root` 401。
 
